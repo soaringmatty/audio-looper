@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.angular/
+.tools/
+.yarn/
+public/audio/looper-processor.js
+public/soundfonts/
+yarn.lock

@@ -1,0 +1,250 @@
+@let vm = workspace.view();
+<div class="settings-heading">
+  <h2 id="audio-settings-title">Audio-Einstellungen</h2>
+  <button
+    id="close-audio-settings"
+    aria-label="Einstellungen schließen"
+    (click)="vm.closeSettings(); workspace.refresh()"
+  >
+    ×
+  </button>
+</div>
+<nav class="settings-tabs" aria-label="Einstellungsbereiche">
+  @for (tab of ['audio', 'midi', 'diagnostics', 'help']; track tab) {
+    <button
+      [class.active]="vm.settingsTab === tab"
+      [attr.aria-pressed]="vm.settingsTab === tab"
+      [disabled]="tab === 'tempo' && !vm.s.reference"
+      (click)="vm.settingsTab = tab; workspace.refresh()"
+    >
+      {{
+        tab === 'audio'
+          ? 'Audio'
+          : tab === 'tempo'
+            ? 'Tempo-Einteilung'
+            : tab === 'midi'
+              ? 'MIDI-Pedal'
+              : tab === 'diagnostics'
+                ? 'Diagnose'
+                : 'Bedienhilfe'
+      }}
+    </button>
+  }
+</nav>
+<div class="settings-content">
+  @if (vm.settingsTab === 'audio') {
+    <div class="setting-row">
+      <label for="unmute-mode-audio">Entmuten</label>
+      <info-hint
+        label="Info zum Entmuten"
+        text="Stummschalten wirkt sofort. Entmuten am nächsten eigenen Loop-Anfang kann durch erneutes Drücken abgebrochen werden. Shift+M bedient die ausgewählte Spur."
+      />
+      <select
+        id="unmute-mode-audio"
+        [(ngModel)]="vm.unmuteMode"
+        (ngModelChange)="vm.savePreferences(); workspace.refresh()"
+      >
+        <option value="cycle">Nächster Loop-Anfang</option>
+        <option value="immediate">Sofort</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label for="audio-channels">Eingangskanäle</label
+      ><info-hint
+        label="Info zu Eingangskanälen"
+        text="Stereo erhält beide Kanäle. Mono links/rechts nimmt nur den entsprechenden Eingang auf und spielt ihn mittig. Mono-Mix mischt beide. Zwischen Aufnahmen wechselbar. Laufende Overdubs werden beim Signalwegwechsel beendet; Loops bleiben erhalten."
+      /><select
+        id="audio-channels"
+        [disabled]="vm.routeLocked"
+        [ngModel]="vm.audio.channels"
+        (ngModelChange)="vm.channelChange($event); workspace.refresh()"
+      >
+        <option value="stereo">Stereo</option>
+        <option value="left">Mono · Eingang links / 1</option>
+        <option value="right">Mono · Eingang rechts / 2</option>
+        <option value="mono">Mono · Mix beider Eingänge</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label for="audio-compensation">Einspiel-Korrektur für neue Aufnahmen (ms)</label
+      ><info-hint
+        label="Info zur Latenzkorrektur"
+        text="Ordnet eingehendes Audio zeitlich früher im Loop ein. Gleicht stabilen Aufnahme-/Wiedergabeversatz aus, beschleunigt aber nicht das Live-Mithören. Browser-Schätzung ist kein Messnachweis. Gilt für diesen Ein-/Ausgang und Kanalmodus; Gleiche konkrete Geräte und gleicher Kanalmodus laden das gespeicherte Profil beim Reload wieder."
+      /><input
+        id="audio-compensation"
+        aria-label="Aufnahmekorrektur in Millisekunden"
+        type="number"
+        min="0"
+        max="1000"
+        step="0.1"
+        [disabled]="vm.audio.correctionLocked || vm.working"
+        [ngModel]="vm.audio.compensationMs"
+        (ngModelChange)="vm.audio.setCorrection($event); workspace.refresh()"
+      />
+    </div>
+    <p class="settings-note">
+      {{ vm.audio.correctionSource }} · Audio-Clock: {{ vm.s.rate }} Hz. Audio vor manueller
+      Änderung freigeben. Wiedergabe-Loops dürfen bleiben; Aufnahme/Overdub und Nachlauf vorher
+      beenden.
+    </p>
+    <button [disabled]="vm.routeLocked" (click)="vm.openCalibration(); workspace.refresh()">
+      Mit Metronom kalibrieren
+    </button>
+    <details class="expert-calibration">
+      <summary>Expertenoption: Kabel-Loopback</summary>
+      <p>Nur mit geeignetem Kabelweg von Ausgang zu Eingang. Kein normaler Headset-Test.</p>
+      <button
+        [disabled]="vm.routeLocked"
+        (click)="vm.openCalibration('loopback'); workspace.refresh()"
+      >
+        Kabel-Loopback öffnen
+      </button>
+    </details>
+    <p class="settings-note">
+      Die Einspiel-Kalibrierung berücksichtigt Deinen persönlichen Spielversatz. Sie verkürzt nicht
+      das Live-Mithören. Profile werden pro tatsächlichem Ein-/Ausgang, Kanalmodus und Sample-Rate
+      gespeichert.
+    </p>
+    <div class="setting-row">
+      <label for="audio-after">Nach Erstaufnahme</label
+      ><select
+        id="audio-after"
+        [(ngModel)]="vm.afterRecord"
+        (change)="vm.settings(); workspace.refresh()"
+      >
+        <option value="dub">Direkt Overdub</option>
+        <option value="play">Nur Wiedergabe</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label for="audio-ring">Fortschrittsring</label
+      ><select
+        id="audio-ring"
+        [(ngModel)]="vm.commonRing"
+        (ngModelChange)="vm.savePreferences(); workspace.refresh()"
+      >
+        <option [ngValue]="false">Eigener Loop</option>
+        <option [ngValue]="true">Gemeinsames Raster</option>
+      </select>
+    </div>
+    <p class="settings-note">
+      {{
+        vm.audio.outputSelectable
+          ? 'Ausgang auf der Hauptseite wählen.'
+          : 'Dieser Browser verwendet den Systemausgang. Ausgang in Windows ändern.'
+      }}
+      Kopfhörer statt Lautsprecher verwenden; keine Bluetooth-Latenzgarantie.
+    </p>
+  }
+  @if (vm.settingsTab === 'midi') {
+    <p>
+      Optional: Das linke Klavierpedal (CC67) steuert die ausgewählte Audiospur. Es werden keine
+      MIDI-Noten aufgenommen oder ausgegeben.
+    </p>
+    <button (click)="vm.connectMidi(); workspace.refresh()">
+      MIDI-Pedal verbinden / erneut suchen
+    </button>
+    <p role="status">{{ vm.midiStatus }}</p>
+    <label
+      >MIDI-Eingang<select [(ngModel)]="vm.midiInput" (change)="vm.bindMidi(); workspace.refresh()">
+        <option value="">Kein MIDI-Pedal</option>
+        @for (input of vm.midiInputs; track input.id) {
+          <option [value]="input.id">{{ input.name || input.id }}</option>
+        }
+      </select></label
+    ><label class="check"
+      ><input
+        type="checkbox"
+        [(ngModel)]="vm.pedalEnabled"
+        (change)="vm.bindMidi(); workspace.refresh()"
+      />Linkes Pedal: Aufnahme / Overdub</label
+    >
+    <p class="settings-note">
+      Einmal pro Druck; erst nach Loslassen erneut. Im Einstellungs-Panel keine Steueraktion. Die
+      lokale Pedalwirkung am Instrument bleibt unverändert.
+    </p>
+  }
+  @if (vm.settingsTab === 'diagnostics') {
+    <h3>Aktueller Audio-Signalweg</h3>
+    <p>{{ vm.audio.deviceNotice }}</p>
+    <button
+      [disabled]="vm.audio.connecting || vm.audio.calibrationActive"
+      (click)="vm.audio.rescan(); workspace.refresh()"
+    >
+      Geräte neu suchen
+    </button>
+    <ul class="audio-diagnostics">
+      @for (line of vm.audio.diagnostics; track $index) {
+        <li>{{ line }}</li>
+      }
+    </ul>
+    <p class="settings-note">
+      Für den Vergleich bei hoher Live-Latenz: gleiche Geräte in Chrome/Edge prüfen; BLUE VO!CE,
+      DTS/Surround und Windows-Audioverbesserungen testweise separat vergleichen. Die App ändert
+      diese Einstellungen nicht.
+    </p>
+  }
+  @if (vm.settingsTab === 'help') {
+    <h3>Audio loopen</h3>
+    <ul>
+      <li>
+        Audio freigeben, Eingang und Ausgang wählen. Ein Instrument braucht einen echten
+        Audioeingang – MIDI allein überträgt keinen Klang.
+      </li>
+      <li>
+        Live-Mithören spielt Deinen Eingang auf demselben Ausgang wie die Loops ab. Mit Kopfhörern
+        verwenden; beim direkt hörbaren Instrument ausgeschaltet lassen.
+      </li>
+      <li>
+        Nur die ausgewählte Spur erhält neuen Eingang. Eingang und Kanalmodus werden pro Spur
+        gemerkt. Zwischen Aufnahmen Geräte wechseln; aktive Overdubs werden bei einem
+        Signalwegwechsel beendet und der Nachlauf abgewartet. Bereits aufgenommene Loops laufen
+        weiter.
+      </li>
+      <li>
+        Metronom vorher an: Start/Ende am bestehenden Takt. Ohne Metronom: freie Erstaufnahme setzt
+        die Referenz.
+      </li>
+      <li>
+        Folgespuren starten am Referenzloop und können passende Bruchteile oder Vielfache lang sein.
+        Overdub-Start am eigenen Loop-Anfang; nochmal drücken annulliert die Vormerkung.
+      </li>
+      <li>
+        Overdub-Ende sofort: Der bereits gespielte Teil bleibt erhalten; nötiger Aufnahme-Nachlauf
+        wird noch eingearbeitet.
+      </li>
+      <li>
+        Bis 120 Sekunden pro Spur, fünf Stereo-Spuren. Speicher wird pro benutzter Spur angefordert.
+        Bei 48 kHz maximal etwa 220 MiB PCM; mobile Geräte können früher an Grenzen kommen.
+      </li>
+    </ul>
+    <h3>Latenz und Grenzen</h3>
+    <ul>
+      <li>
+        „Mit Metronom kalibrieren“ auf der Hauptseite: einen Takt einzählen, dann an acht
+        Taktanfängen einen kurzen Klang machen. Kopfhörer verwenden, im Rhythmus mitspielen statt
+        auf den Klick reagieren. Ergebnis prüfen und ausdrücklich übernehmen. Die Einspiel-Korrektur
+        enthält auch Deinen persönlichen Spielversatz.
+      </li>
+      <li>
+        Manuelle Korrektur und Kalibrierung ändern neue Aufnahmen, nicht bestehende Loops. Andere
+        Ausgänge haben eigene Profile. Der Kabel-Loopback ist eine separate Expertenoption.
+        Live-Mithören wird durch keine Korrektur schneller.
+      </li>
+      <li>
+        Sehr kurze Loops im Verhältnis zur Korrektur können beim ersten Übergang unvollständig
+        klingen. Keine Echtzeitgarantie oder Hardware-Abnahme.
+      </li>
+      <li>
+        2-ms-Rand-Fades reduzieren Knackser; sie rekonstruieren keine abgeschnittenen Hallfahnen.
+      </li>
+      <li>
+        App im Vordergrund lassen. Bei Tabwechsel wird Live-Mithören sicherheitshalber abgeschaltet.
+      </li>
+      <li>
+        Moduswechsel und Neuladen verwerfen alle Loops. Kein Speichern/Export oder Undo.
+        Eingangseffekte stehen auf der Hauptseite.
+      </li>
+    </ul>
+  }
+</div>

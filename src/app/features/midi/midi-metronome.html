@@ -1,0 +1,99 @@
+@let vm = workspace.view();
+<div class="performance-heading"><h2>Metronom</h2></div>
+<div class="metronome-controls">
+  <button
+    class="metro-button"
+    [class.active]="vm.metro.enabled"
+    [attr.aria-pressed]="vm.metro.enabled"
+    (click)="vm.toggleMetro(); workspace.refresh()"
+  >
+    {{ vm.metro.enabled ? 'An' : 'Aus' }} <kbd>T</kbd>
+  </button>
+  <label class="inline-label"
+    ><input
+      aria-label="Tempo"
+      type="number"
+      min="30"
+      max="300"
+      [disabled]="vm.engine.busy"
+      [(ngModel)]="vm.displayBpm"
+      (change)="vm.settings(); workspace.refresh()"
+    />BPM</label
+  >
+  <select
+    class="signature"
+    aria-label="Taktart"
+    [disabled]="vm.engine.busy"
+    [ngModel]="vm.signature"
+    (ngModelChange)="vm.setSignature($event); workspace.refresh()"
+  >
+    <option>4/4</option>
+    <option>3/4</option>
+    <option>6/8</option>
+    <option>5/4</option>
+  </select>
+  <label class="metro-level"
+    >Lautstärke {{ vm.metroPercent }} %<input
+      class="metro-volume"
+      aria-label="Metronom-Lautstärke"
+      type="range"
+      min="0"
+      max="100"
+      step="1"
+      [(ngModel)]="vm.metroPercent"
+      (input)="vm.metro.setVolume(); vm.savePreferences(); workspace.refresh()"
+  /></label>
+</div>
+<div class="tempo-slot">
+  @if (!vm.engine.busy) {
+    <div class="timing-check" aria-label="Timing-Check">
+      @if (vm.timing.active) {
+        <button (click)="vm.timing.cancel(); workspace.refresh()">Messung abbrechen</button>
+      } @else {
+        <button (click)="vm.startTiming(); workspace.refresh()">
+          {{ vm.timing.result ? 'Erneut messen' : 'Timing-Check starten' }}
+        </button>
+      }
+      <div
+        class="timing-check-status"
+        role="status"
+        aria-live="polite"
+        title="Einspielversatz zum Klick einschließlich Signalweg; keine isolierte Taste-bis-Ton-Latenzmessung. Keine automatische Verschiebung von Noten."
+      >
+        @if (vm.timing.active) {
+          <strong>{{ vm.timing.samples.length }}/6 Anschläge</strong>
+          <span>Nach zwei Klicks sechs Noten im Klickpuls spielen.</span>
+        } @else if (vm.timing.result; as result) {
+          <strong>Einspielversatz: {{ result.offsetMs | number: '1.0-1' }} ms</strong>
+          <span [title]="vm.timing.message">
+            @if (result.spreadMs > 25) {
+              Hohe Streuung: {{ result.spreadMs | number: '1.0-1' }} ms · erneut messen.
+            } @else if (
+              vm.midi.outputId !== 'browser' && vm.timing.calibration && vm.useMeasuredMetronome
+            ) {
+              Klick-Vorlauf: {{ vm.metro.advanceMs | number: '1.0-1' }} ms · aktiv
+            } @else {
+              Streuung: {{ result.spreadMs | number: '1.0-1' }} ms · Klickkorrektur nicht aktiv
+            }
+          </span>
+        } @else {
+          <strong>6 Anschläge zum Klick</strong>
+          <span>{{ vm.timing.message || 'Ergebnis bleibt hier sichtbar.' }}</span>
+        }
+      </div>
+    </div>
+  } @else if (vm.tempoCandidates.length) {
+    <tempo-suggestion
+      class="tempo-inline"
+      [locked]="vm.tempoChoiceLocked"
+      [candidates]="vm.tempoCandidates"
+      [index]="vm.tempoIndex"
+      [(bars)]="vm.tempoBars"
+      [(signature)]="vm.tempoSignature"
+      [bpm]="vm.tempoBpm"
+      [canApply]="vm.canConfirmTempo"
+      (choose)="vm.applyTempoChoice($event); workspace.refresh()"
+      (customChange)="vm.confirmTempo(); workspace.refresh()"
+    />
+  }
+</div>

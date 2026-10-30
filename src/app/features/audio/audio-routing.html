@@ -1,0 +1,162 @@
+@let vm = workspace.view();
+<div class="routing-card input-routing">
+  <div class="routing-heading">
+    <label for="audio-input">Eingang</label
+    ><span class="routing-track">Spur {{ vm.selected + 1 }}</span>
+  </div>
+  <select
+    id="audio-input"
+    aria-label="Audioeingang"
+    [title]="vm.audio.actualInput"
+    [disabled]="vm.routeLocked || !vm.audio.inputs.length"
+    [ngModel]="vm.audio.inputId"
+    (ngModelChange)="vm.audio.changeInput($event); workspace.refresh()"
+  >
+    @if (!vm.audio.inputs.length) {
+      <option [value]="vm.audio.inputId">Geräte nach Audiofreigabe verfügbar</option>
+    }
+    @if (vm.audio.inputMissing) {
+      <option [value]="vm.audio.inputId" disabled>
+        Nicht verfügbar · {{ vm.audio.actualInput }}
+      </option>
+    }
+    @for (d of vm.audio.inputs; track d.deviceId) {
+      <option [value]="d.deviceId">{{ d.label || 'Audioeingang' }}</option>
+    }
+  </select>
+  <div class="routing-meter" [title]="vm.audio.actualSettings">
+    <label for="input-peak">Eingangspegel</label
+    ><strong [class.clipping]="vm.s.inputPeak >= 0.98">{{
+      vm.s.inputPeak >= 0.98 ? 'Clipping' : vm.peak(vm.s.inputPeak)
+    }}</strong
+    ><meter
+      id="input-peak"
+      min="0"
+      max="1"
+      low="0.01"
+      high="0.85"
+      optimum="0.4"
+      [value]="vm.s.inputPeak"
+    >
+      {{ vm.peak(vm.s.inputPeak) }}
+    </meter>
+  </div>
+  <div class="routing-calibration">
+    <button
+      id="main-calibrate"
+      [disabled]="vm.routeLocked"
+      (click)="vm.openCalibration(); workspace.refresh()"
+    >
+      Mit Metronom kalibrieren</button
+    ><button
+      class="correction-chip"
+      [title]="vm.audio.correctionSource + ' · für diesen Ein-/Ausgang'"
+      (click)="vm.openSettings(); workspace.refresh()"
+    >
+      <strong>{{ vm.audio.compensationMs | number: '1.0-1' }} ms</strong
+      ><span>{{ vm.audio.correctionLabel }}</span>
+    </button>
+  </div>
+</div>
+<div class="routing-card output-routing">
+  <div class="routing-heading"><label for="audio-output">Ausgang</label></div>
+  <select
+    id="audio-output"
+    aria-label="Audioausgang"
+    [title]="vm.audio.actualOutput"
+    [disabled]="vm.routeLocked || !vm.audio.outputSelectable || !vm.audio.outputs.length"
+    [ngModel]="vm.audio.outputId"
+    (ngModelChange)="vm.audio.changeOutput($event); workspace.refresh()"
+  >
+    @if (!vm.audio.outputs.length) {
+      <option [value]="vm.audio.outputId">Geräte nach Audiofreigabe verfügbar</option>
+    }
+    @if (vm.audio.outputMissing) {
+      <option [value]="vm.audio.outputId" disabled>
+        Nicht verfügbar · {{ vm.audio.actualOutput }}
+      </option>
+    }
+    @for (d of vm.audio.outputs; track d.deviceId) {
+      <option [value]="d.deviceId">{{ d.label || 'Audioausgang' }}</option>
+    }
+  </select>
+  <div class="routing-volume">
+    <label for="master-volume">Gesamtlautstärke</label
+    ><strong [class.clipping]="vm.s.outputPeak >= 1">{{
+      vm.s.outputPeak >= 1 ? 'Clipping' : (vm.audio.master * 100 | number: '1.0-0') + ' %'
+    }}</strong
+    ><input
+      id="master-volume"
+      aria-label="Gesamtlautstärke"
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      [(ngModel)]="vm.audio.master"
+      (input)="vm.settings(); workspace.refresh()"
+    />
+  </div>
+</div>
+<div class="routing-card monitor-routing">
+  <div class="routing-heading">
+    <label class="check"
+      ><input
+        type="checkbox"
+        [disabled]="!vm.audio.ready || vm.s.calibrating || vm.audio.connecting"
+        [(ngModel)]="vm.audio.monitor"
+        (change)="vm.settings(); workspace.refresh()"
+      />Live-Mithören</label
+    ><info-hint
+      label="Info zum Audio-Mithören"
+      text="Spielt den aktuellen Eingang zusätzlich zu den Loops auf demselben Ausgang ab. Mit Kopfhörern verwenden, um Rückkopplung zu vermeiden. Wenn Du Dein Instrument direkt hörst, ausgeschaltet lassen. Korrektur verkürzt nicht die Live-Verzögerung."
+    />
+  </div>
+  <div class="routing-volume">
+    <label for="monitor-volume">Mithörlautstärke</label
+    ><strong>{{ vm.audio.monitorVolume * 100 | number: '1.0-0' }} %</strong
+    ><input
+      id="monitor-volume"
+      aria-label="Live-Mithörlautstärke"
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      [disabled]="!vm.audio.monitor || !vm.audio.ready || vm.s.calibrating"
+      [(ngModel)]="vm.audio.monitorVolume"
+      (input)="vm.settings(); workspace.refresh()"
+    />
+  </div>
+  <div class="routing-actions">
+    <div
+      class="audio-status"
+      role="status"
+      [attr.data-state]="vm.audio.error ? 'error' : vm.audio.ready ? 'ready' : 'idle'"
+    >
+      <strong
+        ><i aria-hidden="true"></i
+        >{{
+          vm.s.calibrating
+            ? 'Kalibrierung läuft'
+            : vm.audio.connecting
+              ? 'Verbinden …'
+              : vm.audio.ready
+                ? 'Audio bereit'
+                : 'Eingang nicht aktiv'
+        }}</strong
+      >
+    </div>
+    <button
+      class="connect"
+      [disabled]="vm.audio.connecting || vm.s.calibrating"
+      (click)="vm.audio.rescan(); workspace.refresh()"
+    >
+      {{
+        vm.audio.ready
+          ? 'Geräte neu suchen'
+          : vm.audio.context
+            ? 'Audio fortsetzen'
+            : 'Audio freigeben'
+      }}
+    </button>
+  </div>
+</div>

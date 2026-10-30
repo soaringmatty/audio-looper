@@ -1,0 +1,26 @@
+[
+  {
+    "name": "generaluser-gs-2.0.3.sf2",
+    "url": "https://raw.githubusercontent.com/mrbumpy409/GeneralUser-GS/684543d5e5efaef08d02be50dcda8d552478fa60/GeneralUser-GS.sf2",
+    "bytes": 32319396,
+    "sha256": "9575028c7a1f589f5770fccc8cff2734566af40cd26ed836944e9a5152688cfe"
+  },
+  {
+    "name": "GeneralUser-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/mrbumpy409/GeneralUser-GS/684543d5e5efaef08d02be50dcda8d552478fa60/documentation/LICENSE.txt",
+    "bytes": 2317,
+    "sha256": "7b32efefdf95ce38a043799f0659853ddc00fbaa14d8c50f0aca16b9b8b405be"
+  },
+  {
+    "name": "fluidr3-gm.sf2",
+    "url": "https://github.com/pianobooster/fluid-soundfont/releases/download/v3.1/FluidR3_GM.sf2",
+    "bytes": 148398306,
+    "sha256": "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0"
+  },
+  {
+    "name": "FluidR3-COPYING.txt",
+    "url": "https://raw.githubusercontent.com/pianobooster/fluid-soundfont/master/COPYING",
+    "bytes": 1086,
+    "sha256": "8ef830b65c97a976b86e34bb5fde08d99dfb1db13c4149b5b20bc837ac6c4568"
+  }
+]

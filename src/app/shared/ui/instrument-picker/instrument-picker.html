@@ -1,0 +1,46 @@
+<button
+  #trigger
+  type="button"
+  class="instrument-trigger"
+  role="combobox"
+  aria-haspopup="listbox"
+  [attr.aria-label]="label()"
+  [attr.aria-expanded]="opened()"
+  [attr.aria-controls]="pickerId()"
+  [attr.aria-activedescendant]="opened() ? pickerId() + '-' + active() : null"
+  (click)="toggle()"
+>
+  {{ selectedName() }} ▾
+</button>
+<div
+  #popup
+  popover="auto"
+  class="instrument-list"
+  role="listbox"
+  [id]="pickerId()"
+  [attr.aria-label]="label()"
+  [style.top.px]="top"
+  [style.left.px]="left"
+  [style.width.px]="width"
+  (toggle)="opened.set($any($event).newState === 'open')"
+>
+  @for (group of groups(); track group.name) {
+    <div role="group" [attr.aria-label]="group.name">
+      <div class="instrument-group" aria-hidden="true">{{ group.name }}</div>
+      @for (p of group.programs; track p.id) {
+        <div
+          role="option"
+          class="instrument-option"
+          [id]="pickerId() + '-' + p.id"
+          [attr.data-program]="p.id"
+          [class.active]="active() === p.id"
+          [attr.aria-selected]="value() === p.id"
+          (pointerdown)="$event.preventDefault()"
+          (click)="choose(p.id)"
+        >
+          {{ p.name }}
+        </div>
+      }
+    </div>
+  }
+</div>

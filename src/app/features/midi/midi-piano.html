@@ -1,0 +1,66 @@
+@let vm = workspace.view();
+<div class="piano-tools">
+  <div class="octave-controls">
+    <button
+      aria-label="Oktave tiefer"
+      [disabled]="vm.piano.octave === 1"
+      (click)="vm.shiftOctave(-1); workspace.refresh()"
+    >
+      −</button
+    ><span>Oktave {{ vm.piano.octave }} <kbd>− / +</kbd></span
+    ><button
+      aria-label="Oktave höher"
+      [disabled]="vm.piano.octave === 7"
+      (click)="vm.shiftOctave(1); workspace.refresh()"
+    >
+      +
+    </button>
+  </div>
+  <button aria-label="Piano ausblenden" (click)="vm.togglePiano(); workspace.refresh()">×</button>
+</div>
+@if (vm.midi.inputId !== 'piano') {
+  <button class="piano-overlay" (click)="vm.setInput('piano'); workspace.refresh()">
+    Browser-Piano als Eingang wählen
+  </button>
+}
+@if (vm.midi.outputId === 'browser' && !vm.midi.browser.channels[vm.engine.selected].loaded) {
+  <div class="piano-loading" role="status">
+    Instrumente werden vorbereitet · Beim Spielen startet Audio automatisch.
+  </div>
+}
+<div
+  id="piano-surface"
+  class="piano-keys"
+  tabindex="0"
+  aria-label="88 Klaviertasten A0 bis C8. Plus/Minus wechselt die Tastatur-Oktave."
+>
+  @for (k of vm.fullPiano; track k.note) {
+    <button
+      class="piano-key"
+      [class.black]="k.black"
+      [class.white]="!k.black"
+      [class.mapped]="vm.piano.mapped(k.note)"
+      [class.pressed]="vm.piano.activeNote(k.note)"
+      [style.--position]="k.position"
+      [attr.title]="vm.drumLabel(k.note) || k.name"
+      [attr.aria-label]="
+        k.name +
+        (vm.drumLabel(k.note) ? ', ' + vm.drumLabel(k.note) : '') +
+        (vm.piano.binding(k.note) ? ', Taste ' + vm.piano.binding(k.note) : '')
+      "
+      [attr.aria-pressed]="vm.piano.activeNote(k.note)"
+      (pointerdown)="vm.pianoDown($event, k.note); workspace.refresh()"
+      (pointerup)="vm.pianoUp($event); workspace.refresh()"
+      (pointercancel)="vm.pianoUp($event); workspace.refresh()"
+      (lostpointercapture)="vm.pianoUp($event); workspace.refresh()"
+      (keydown)="vm.pianoKeyboard($event, k.note, true); workspace.refresh()"
+      (keyup)="vm.pianoKeyboard($event, k.note, false); workspace.refresh()"
+      (blur)="vm.release(); workspace.refresh()"
+    >
+      <span class="piano-binding">{{ vm.piano.binding(k.note) }}</span>
+      @if (!k.black && k.name.startsWith('C')) {
+        <span class="note-name">{{ k.name }}</span>
+      }
+    </button>
+  }
+</div>

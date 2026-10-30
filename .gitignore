@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.angular/
+.tools/
+.yarn/install-state.gz
+.yarn/unplugged/
+.yarn/cache/
+*.log
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+public/soundfonts/*.sf2

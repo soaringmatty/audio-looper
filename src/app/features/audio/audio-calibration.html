@@ -1,0 +1,135 @@
+@let vm = workspace.view();
+<div class="settings-heading">
+  <h2 id="calibration-title">
+    {{
+      vm.audio.calibration.method === 'tap'
+        ? 'Einspiel-Kalibrierung'
+        : 'Expertenoption: Kabel-Loopback'
+    }}
+  </h2>
+  <button
+    id="close-calibration"
+    aria-label="Kalibrierung schließen"
+    (click)="vm.closeCalibration(); workspace.refresh()"
+  >
+    ×
+  </button>
+</div>
+<div class="calibration-content">
+  <div class="calibration-route">
+    <strong>{{ vm.audio.actualInput }}</strong
+    ><span>→ {{ vm.audio.actualOutput }}</span>
+  </div>
+  @if (vm.audio.calibration.method === 'tap') {
+    <ol>
+      <li>
+        Kopfhörer verwenden. Live-Mithören und die vorhandenen Loops werden während der Messung
+        stummgeschaltet.
+      </li>
+      <li>Ein Takt wird eingezählt: <strong>120 BPM · 4/4</strong>.</li>
+      <li>
+        Dann <strong>achtmal am Taktanfang</strong> einen kurzen, deutlichen Klang machen, etwa
+        „Tsch“, einen perkussiven Klavierton oder ein Klatschen. Dazwischen ruhig bleiben.
+      </li>
+      <li>Im Rhythmus mitspielen – nicht erst auf den gehörten Klick reagieren.</li>
+    </ol>
+    <p class="calibration-caveat">
+      Das Ergebnis enthält Deinen persönlichen Spielversatz. Es korrigiert neue Aufnahmen, nicht die
+      Verzögerung beim Live-Mithören. Bestehende Loops bleiben unverändert.
+    </p>
+  } @else {
+    <p>
+      Nur mit geeignetem Kabelweg <strong>Audioausgang → Audioeingang</strong>. Drei leise
+      Testsignale werden verglichen. Kein normaler Mikrofon-/Headset-Test; keine ungeeigneten
+      Ausgänge blind an Mikrofoneingänge anschließen.
+    </p>
+  }
+  @if (vm.audio.calibration.phase === 'idle' || vm.audio.calibration.phase === 'error') {
+    @if (vm.audio.calibration.message) {
+      <p class="warning" role="status">{{ vm.audio.calibration.message }}</p>
+    }
+    <label class="check calibration-check"
+      ><input id="calibration-ready" type="checkbox" [(ngModel)]="vm.calibrationReady" />{{
+        vm.audio.calibration.method === 'tap'
+          ? 'Kopfhörer auf, bereit zum Mitspielen'
+          : 'Geeigneter Kabelweg bewusst verbunden'
+      }}</label
+    >
+    <button
+      class="connect"
+      [disabled]="!vm.calibrationReady || vm.audio.routeLocked"
+      (click)="vm.startCalibration(); workspace.refresh()"
+    >
+      {{ vm.audio.calibration.phase === 'error' ? 'Erneut starten' : 'Kalibrierung starten' }}
+    </button>
+    @if (vm.audio.firstRecording) {
+      <p class="settings-note">
+        Erst die laufende/vorgemerkte Erstaufnahme abschließen. Wiedergabe-Loops dürfen bleiben;
+        Overdubs werden vor der Messung beendet.
+      </p>
+    }
+  }
+  @if (vm.audio.calibration.phase === 'starting' || vm.audio.calibration.phase === 'running') {
+    <div class="calibration-progress" role="status" aria-live="polite">
+      <strong>{{
+        vm.audio.calibration.phase === 'starting'
+          ? 'Vorbereiten …'
+          : vm.audio.calibration.method === 'loopback'
+            ? 'Testsignale werden gemessen'
+            : !vm.s.calibrationInfo?.bar
+              ? 'Einzählen · noch nicht spielen'
+              : 'Taktanfang ' + vm.s.calibrationInfo.bar + ' / 8'
+      }}</strong>
+      <progress
+        [value]="vm.s.calibrationInfo?.elapsed || 0"
+        [max]="vm.s.calibrationInfo?.total || 1"
+      ></progress>
+      <span>{{
+        vm.audio.calibration.message ||
+          (vm.audio.calibration.method === 'tap'
+            ? 'Nur einen kurzen Klang pro Taktanfang.'
+            : 'Live-Mithören bleibt aus.')
+      }}</span>
+    </div>
+    <button (click)="vm.closeCalibration(); workspace.refresh()">Abbrechen</button>
+  }
+  @if (vm.audio.calibration.phase === 'result') {
+    @if (vm.audio.calibration.result; as r) {
+      <div class="calibration-result">
+        <strong>{{ r.accepted }} / 8 eindeutige Treffer</strong
+        ><span
+          >Versatz {{ r.offsetMs | number: '1.0-0' }} ms · Streuung
+          {{ r.spreadMs | number: '1.0-0' }} ms</span
+        ><span>{{ r.rejected }} verworfen · keine reine Hardwaremessung</span>
+      </div>
+    }
+    <label class="calibration-value" for="calibration-value"
+      >Vorschlag für neue Aufnahmen (ms)<input
+        id="calibration-value"
+        type="number"
+        min="0"
+        max="1000"
+        step="1"
+        [(ngModel)]="vm.audio.calibration.suggested"
+    /></label>
+    <p>{{ vm.audio.calibration.message }}</p>
+    <div class="calibration-actions">
+      <button
+        class="connect"
+        [disabled]="
+          vm.audio.calibration.suggested < 0 ||
+          vm.audio.calibration.suggested > 1000 ||
+          vm.audio.calibration.suggested === null
+        "
+        (click)="vm.acceptCalibration(); workspace.refresh()"
+      >
+        Übernehmen</button
+      ><button (click)="vm.startCalibration(); workspace.refresh()">Wiederholen</button
+      ><button (click)="vm.closeCalibration(); workspace.refresh()">Verwerfen</button>
+    </div>
+  }
+  <p class="settings-note">
+    Während der Messung sind laufende Loops nur stumm, ihre Zeitbasis läuft weiter. Danach wird ihre
+    aktuelle Phase wiedergegeben; Live-Mithören bleibt aus.
+  </p>
+</div>

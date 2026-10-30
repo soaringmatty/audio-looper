@@ -1,0 +1,47 @@
+@let vm = workspace.view();
+<label
+  >EINGANG<select
+    [ngModel]="vm.midi.inputId"
+    (ngModelChange)="vm.setInput($event); workspace.refresh()"
+  >
+    <option value="piano">Browser-Piano / Tastatur</option>
+    <option value="">Kein Eingang</option>
+    @for (p of vm.midi.inputs; track p.id) {
+      <option [value]="p.id">{{ p.name || p.id }}</option>
+    }
+  </select></label
+>
+<span class="route" aria-hidden="true">→</span>
+<label
+  >AUSGANG<select
+    [ngModel]="vm.midi.outputId"
+    (ngModelChange)="vm.setOutput($event); workspace.refresh()"
+  >
+    <option value="browser">Browser-Synth · Kopfhörer / Lautsprecher</option>
+    <option value="">Kein Ausgang</option>
+    @for (p of vm.midi.outputs; track p.id) {
+      <option [value]="p.id">{{ p.name || p.id }}</option>
+    }
+  </select></label
+>
+@if (vm.midi.outputId === 'browser') {
+  <div class="audio-status" role="status" aria-live="polite" [attr.data-state]="vm.audioState">
+    <span>AUDIO</span><strong><i aria-hidden="true"></i>{{ vm.audioStatus }}</strong>
+  </div>
+} @else if (vm.midi.outputId) {
+  <div class="audio-status device-profile">
+    <span>GERÄTEPROFIL</span
+    ><strong>{{ vm.midi.clavinova ? 'Yamaha CLP-625' : 'General MIDI' }}</strong>
+  </div>
+}
+<label class="check live-monitor"
+  ><input
+    type="checkbox"
+    [ngModel]="vm.midi.monitor"
+    (ngModelChange)="vm.monitor($event); workspace.refresh()" />Live-Mithören<info-hint
+    label="Info zum Live-Mithören"
+    text="Browser-Ausgang: standardmäßig an. Externes Gerät: standardmäßig aus, damit ein selbst klingendes Klavier nicht doppelt spielt. Die Auswahl lässt sich manuell übersteuern. Local Control am Klavier wird nicht verändert."
+/></label>
+<button class="panic-button" (click)="vm.panic(); workspace.refresh()">
+  Hängende Noten beenden
+</button>

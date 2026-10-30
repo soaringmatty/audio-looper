@@ -1,0 +1,59 @@
+name: Deploy GitHub Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - name: Require the default GitHub Pages address
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/check-pages-address.mjs
+      - name: Get Pages configuration
+        uses: actions/configure-pages@v5
+      - name: Install locked dependencies
+        run: node .yarn/releases/yarn-4.18.1.cjs install --immutable
+      - name: Download and verify soundbanks
+        run: node scripts/fetch-soundbanks.mjs
+      - name: Build production site
+        run: node .yarn/releases/yarn-4.18.1.cjs build:pages
+      - name: Check release files
+        run: node scripts/check-release.mjs
+      - name: Upload site only
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/audio-looper/browser
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

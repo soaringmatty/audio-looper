@@ -1,0 +1,95 @@
+@let vm = workspace.view();
+<main
+  performanceFocus
+  data-performance
+  tabindex="-1"
+  class="workspace"
+  [class.with-piano]="vm.pianoVisible"
+  [attr.inert]="vm.settingsOpen ? '' : null"
+>
+  @if (vm.performanceWarning) {
+    <aside class="performance-alert" role="alert">
+      <strong>Warnung</strong><span>{{ vm.performanceWarning }}</span
+      ><button aria-label="Warnung schließen" (click)="vm.dismissWarning(); workspace.refresh()">
+        ×
+      </button>
+    </aside>
+  }
+  <header
+    app-workspace-header
+    mode="midi"
+    [busy]="vm.engine.busy"
+    (settingsRequested)="vm.openSettings(); workspace.refresh()"
+  ></header>
+
+  <section class="connections panel" aria-label="Ein- und Ausgang" app-midi-connections></section>
+
+  <section
+    class="transport panel metronome-card"
+    aria-label="Metronom"
+    app-midi-metronome
+  ></section>
+
+  <section class="tracks" aria-label="Loop-Spuren">
+    @for (t of vm.engine.tracks; track t.id) {
+      <article
+        class="track panel"
+        [class.selected]="vm.engine.selected === t.id"
+        [class.muted]="t.muted"
+        [class.mobile-hidden]="vm.engine.selected !== t.id"
+        (pointerdown)="vm.select(t.id); workspace.refresh()"
+        app-midi-track
+        [track]="t"
+      ></article>
+    }
+  </section>
+
+  <footer>
+    <div class="shortcuts">
+      <span><kbd>1–5</kbd> Spur</span><span><kbd>Space / Enter</kbd> Aufnahme / Overdub</span
+      ><span><kbd>T</kbd> Metronom</span><span><kbd>Shift+M</kbd> Stumm</span
+      ><span><kbd>Entf</kbd> Löschen</span>
+    </div>
+    <button
+      class="piano-toggle"
+      [attr.aria-expanded]="vm.pianoVisible"
+      (click)="vm.togglePiano(); workspace.refresh()"
+    >
+      {{ vm.pianoVisible ? 'Piano ausblenden' : 'Piano einblenden' }}
+    </button>
+    <button class="midi-retry" (click)="vm.openDiagnostics(); workspace.refresh()">
+      MIDI-Diagnose
+    </button>
+    @if (vm.midi.midiState === 'error') {
+      <button class="midi-retry" (click)="vm.midi.connect(); workspace.refresh()">
+        MIDI erneut versuchen
+      </button>
+    }
+    <button class="reset-all-tracks" (click)="vm.resetAllTracks()">Alle Tracks zurücksetzen</button>
+  </footer>
+  <div class="mobile-selector" aria-label="Spur wählen">
+    @for (t of vm.engine.tracks; track t.id) {
+      <button
+        [class.active]="vm.engine.selected === t.id"
+        (click)="vm.select(t.id); workspace.refresh()"
+      >
+        Spur {{ t.id + 1 }}
+      </button>
+    }
+  </div>
+
+  @if (vm.pianoVisible) {
+    <section class="piano-dock panel" aria-label="Virtuelles Piano" app-midi-piano></section>
+  }
+</main>
+
+@if (vm.settingsOpen) {
+  <div class="settings-backdrop" (click)="vm.closeSettings(); workspace.refresh()"></div>
+  <section
+    class="settings-panel panel"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="settings-title"
+    app-midi-settings
+  ></section>
+}

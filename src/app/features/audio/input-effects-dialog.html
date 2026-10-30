@@ -1,0 +1,105 @@
+@let vm = workspace.view();
+<div class="settings-heading">
+  <h2 id="input-fx-title">Input FX · Spur {{ vm.selected + 1 }}</h2>
+  <button
+    id="close-input-fx"
+    aria-label="Effekt-Details schließen"
+    (click)="vm.closeFx(); workspace.refresh()"
+  >
+    ×
+  </button>
+</div>
+<div class="calibration-content fx-detail-content">
+  <label for="fx-preset-details"
+    >Sound-Preset<select
+      id="fx-preset-details"
+      [ngModel]="vm.audio.inputFx.preset"
+      (ngModelChange)="vm.preset($event); workspace.refresh()"
+    >
+      @for (p of vm.fxPresets; track p.id) {
+        <option [value]="p.id">{{ p.name }}</option>
+      }
+    </select></label
+  >
+  <p>{{ vm.fxDescription }}</p>
+  @if (vm.audio.inputFx.preset !== 'clean') {
+    <label for="fx-tone"
+      >{{ vm.toneLabel
+      }}<input
+        id="fx-tone"
+        [attr.aria-label]="vm.toneLabel"
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        [ngModel]="vm.audio.inputFx.tone"
+        (ngModelChange)="vm.audio.updateInputFx({ tone: +$event }); workspace.refresh()"
+    /></label>
+  }
+  @if (vm.audio.inputFx.preset === 'space') {
+    <label for="fx-room"
+      >Halllänge <span>Kurz → Lang</span
+      ><input
+        id="fx-room"
+        aria-label="Halllänge"
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        [ngModel]="vm.audio.inputFx.room"
+        (ngModelChange)="vm.audio.updateInputFx({ room: +$event }); workspace.refresh()"
+    /></label>
+  }
+  @if (vm.audio.inputFx.preset === 'echo') {
+    @if (vm.echoSynced) {
+      <label for="fx-division"
+        >Tempo-Unterteilung<select
+          id="fx-division"
+          [ngModel]="vm.audio.inputFx.division"
+          (ngModelChange)="vm.audio.updateInputFx({ division: $event }); workspace.refresh()"
+        >
+          <option value="quarter">Viertel</option>
+          <option value="eighth">Achtel</option>
+          <option value="dotted">Punktierte Achtel</option>
+        </select></label
+      >
+    } @else {
+      <label for="fx-echo-ms"
+        >Echozeit ohne bestätigtes Tempo (ms)<input
+          id="fx-echo-ms"
+          type="number"
+          min="80"
+          max="1200"
+          [ngModel]="vm.audio.inputFx.echoMs"
+          (ngModelChange)="vm.audio.updateInputFx({ echoMs: +$event }); workspace.refresh()"
+      /></label>
+    }
+    <p class="settings-note">
+      {{ vm.echoSynced ? 'Synchron zum etablierten Tempo' : 'Freie Echozeit' }} ·
+      {{ vm.echoTimeMs | number: '1.0-0' }} ms
+    </p>
+    <label for="fx-feedback"
+      >Wiederholungen <span>{{ vm.audio.inputFx.feedback * 100 | number: '1.0-0' }} % Feedback</span
+      ><input
+        id="fx-feedback"
+        aria-label="Echo-Wiederholungen"
+        type="range"
+        min="0"
+        max="0.7"
+        step="0.01"
+        [ngModel]="vm.audio.inputFx.feedback"
+        (ngModelChange)="vm.audio.updateInputFx({ feedback: +$event }); workspace.refresh()"
+    /></label>
+  }
+  <p class="calibration-caveat">
+    Der bearbeitete Eingang wird dauerhaft in neue Aufnahmen und Overdubs geschrieben. Ein späterer
+    Presetwechsel entfernt keine bereits aufgenommenen Effekte. Kein Effekt gibt nur den aktuellen
+    Eingang unbearbeitet wieder.
+  </p>
+  <p class="settings-note">
+    Hall-/Echo-Fahnen nur so lange aufnehmen, wie die Aufnahme läuft. Am Loop-Ende ausreichend Platz
+    lassen. Bass ergänzt eine Oktave nach unten. Der tiefe Anteil nutzt kurze Audiopuffer (4–44 ms
+    Verzögerung); körniger Klang ist möglich. Der Originalanteil bleibt direkt. Diese
+    Effektverzögerung ist nicht Teil der Geräte-Kalibrierung.
+  </p>
+</div>

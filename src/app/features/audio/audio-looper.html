@@ -1,0 +1,98 @@
+@let vm = workspace.view();
+<main
+  performanceFocus
+  data-performance
+  tabindex="-1"
+  class="workspace audio-workspace"
+  [attr.inert]="vm.settingsOpen || vm.calibrationOpen || vm.fxDetailsOpen ? '' : null"
+>
+  @if (vm.audio.error) {
+    <aside class="performance-alert" role="alert">
+      <strong>Warnung</strong><span>{{ vm.audio.error }}</span
+      ><button aria-label="Warnung schließen" (click)="vm.audio.error = ''; workspace.refresh()">
+        ×
+      </button>
+    </aside>
+  }
+  <header
+    app-workspace-header
+    mode="audio"
+    [busy]="vm.s.busy || vm.s.calibrating"
+    (settingsRequested)="vm.openSettings(); workspace.refresh()"
+  ></header>
+  <section
+    class="audio-routing panel"
+    aria-label="Audio Ein- und Ausgang"
+    app-audio-routing
+  ></section>
+  <div class="performance-cards">
+    <section
+      class="input-fx-bar panel effects-card"
+      aria-label="Eingangseffekte"
+      app-input-effects
+    ></section>
+    <section
+      class="transport panel metronome-card"
+      aria-label="Metronom"
+      app-audio-metronome
+    ></section>
+  </div>
+  <section class="tracks" aria-label="Audio Loop-Spuren">
+    @for (t of vm.s.tracks; track t.id) {
+      <article
+        class="track panel audio-track"
+        [class.selected]="vm.selected === t.id"
+        [class.muted]="t.muted"
+        [class.mobile-hidden]="vm.selected !== t.id"
+        (click)="vm.selectCard($event, t.id); workspace.refresh()"
+        app-audio-track
+        [track]="t"
+      ></article>
+    }
+  </section>
+  <footer>
+    <div class="shortcuts">
+      <span><kbd>1–5</kbd> Spur</span><span><kbd>Space / Enter</kbd> Aufnahme / Overdub</span
+      ><span><kbd>T</kbd> Metronom</span><span><kbd>Shift+M</kbd> Stumm</span
+      ><span><kbd>Entf</kbd> Löschen</span>
+    </div>
+    <button class="reset-all-tracks" (click)="vm.resetAllTracks()">Alle Tracks zurücksetzen</button>
+  </footer>
+  <div class="mobile-selector" aria-label="Spur wählen">
+    @for (t of vm.s.tracks; track t.id) {
+      <button [class.active]="vm.selected === t.id" (click)="vm.select(t.id); workspace.refresh()">
+        Spur {{ t.id + 1 }}
+      </button>
+    }
+  </div>
+</main>
+@if (vm.fxDetailsOpen) {
+  <div class="settings-backdrop" (click)="vm.closeFx(); workspace.refresh()"></div>
+  <section
+    class="calibration-panel fx-detail-panel panel"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="input-fx-title"
+    app-input-effects-dialog
+  ></section>
+}
+@if (vm.calibrationOpen) {
+  <div class="settings-backdrop"></div>
+  <section
+    class="calibration-panel panel"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="calibration-title"
+    app-audio-calibration
+  ></section>
+}
+@if (vm.settingsOpen) {
+  <div class="settings-backdrop" (click)="vm.closeSettings(); workspace.refresh()"></div>
+  <section
+    class="settings-panel panel"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="audio-settings-title"
+    app-audio-settings
+  ></section>
+}

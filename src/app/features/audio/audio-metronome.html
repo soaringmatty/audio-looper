@@ -1,0 +1,63 @@
+@let vm = workspace.view();
+<div class="performance-heading"><h2>Metronom</h2></div>
+<div class="metronome-controls">
+  <button
+    class="metro-button"
+    [disabled]="vm.s.calibrating || vm.working"
+    [class.active]="vm.s.metro"
+    [attr.aria-pressed]="vm.s.metro"
+    (click)="vm.toggleMetro(); workspace.refresh()"
+  >
+    {{ vm.s.metro ? 'An' : 'Aus' }} <kbd>T</kbd>
+  </button>
+  <label class="inline-label"
+    ><input
+      aria-label="Tempo"
+      type="number"
+      min="30"
+      max="300"
+      [disabled]="vm.locked"
+      [(ngModel)]="vm.displayBpm"
+      (change)="vm.settings(); workspace.refresh()"
+    />BPM</label
+  >
+  <select
+    class="signature"
+    aria-label="Taktart"
+    [disabled]="vm.locked"
+    [ngModel]="vm.signature"
+    (ngModelChange)="vm.signature = $event; vm.settings(); workspace.refresh()"
+  >
+    <option>4/4</option>
+    <option>3/4</option>
+    <option>6/8</option>
+    <option>5/4</option>
+  </select>
+  <label class="metro-level"
+    >Lautstärke {{ vm.metroPercent }} %<input
+      class="metro-volume"
+      aria-label="Metronom-Lautstärke"
+      type="range"
+      min="0"
+      max="100"
+      step="1"
+      [(ngModel)]="vm.metroPercent"
+      (input)="vm.settings(); workspace.refresh()"
+  /></label>
+</div>
+<div class="tempo-slot">
+  @if (vm.candidates.length) {
+    <tempo-suggestion
+      class="tempo-inline"
+      [locked]="vm.tempoChoiceLocked"
+      [candidates]="vm.candidates"
+      [index]="vm.tempoIndex"
+      [(bars)]="vm.tempoBars"
+      [(signature)]="vm.tempoSignature"
+      [bpm]="vm.tempoBpm"
+      [canApply]="vm.canConfirm"
+      (choose)="vm.applyTempoChoice($event); workspace.refresh()"
+      (customChange)="vm.confirmTempo(); workspace.refresh()"
+    />
+  }
+</div>

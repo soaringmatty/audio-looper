@@ -1,0 +1,175 @@
+@let vm = workspace.view();
+@let t = track();
+@let fixedBars = t.fixedBars;
+<div class="track-heading">
+  <button
+    class="track-select"
+    (click)="vm.select(t.id); workspace.refresh()"
+    [attr.aria-pressed]="vm.engine.selected === t.id"
+  >
+    <span class="track-title">SPUR 0{{ t.id + 1 }}</span
+    ><kbd>{{ t.id + 1 }}</kbd>
+  </button>
+</div>
+<div class="dial-slot">
+  <button
+    class="loop-button"
+    [id]="'loop-' + t.id"
+    [class.recording]="vm.targetState(t) === 'recording'"
+    [class.playing]="vm.targetState(t) === 'playing'"
+    [class.overdub]="vm.targetState(t) === 'overdub'"
+    [class.queued]="t.pending"
+    [style.--progress]="vm.progress(t) + '%'"
+    [attr.aria-label]="
+      'Spur ' + (t.id + 1) + ': ' + vm.buttonLabel(t) + ' ' + vm.countdown(t, vm.clock)
+    "
+    (pointerdown)="vm.press($event, t.id); workspace.refresh()"
+    (keydown)="vm.buttonKey($event, t.id); workspace.refresh()"
+    (click)="$event.detail === 0 && vm.trigger(t.id); workspace.refresh()"
+  >
+    <span class="loop-inner"
+      ><span class="loop-icon">{{
+        t.state === 'empty' || t.state === 'armed'
+          ? '+'
+          : t.state === 'recording'
+            ? '●'
+            : t.state === 'overdub'
+              ? '⊕'
+              : '▶'
+      }}</span
+      ><span class="loop-label">{{ vm.buttonLabel(t) }}</span>
+      @if (t.muted) {
+        <span class="mute-indicator">STUMM</span>
+      }
+      @if (t.autoEnd !== undefined && t.state === 'recording') {
+        <span class="auto-countdown">{{ vm.autoRemaining(t) | number: '1.1-1' }} s</span>
+      }
+    </span>
+  </button>
+</div>
+<div class="track-info">
+  @if (vm.unmuteHint(t) || (t.pending ? vm.countdown(t, vm.clock) : vm.pending(t))) {
+    <span
+      class="pending"
+      aria-live="polite"
+      [title]="vm.unmuteHint(t) || (t.pending ? vm.countdown(t, vm.clock) : vm.pending(t))"
+      >{{ vm.unmuteHint(t) || (t.pending ? vm.countdown(t, vm.clock) : vm.pending(t)) }}</span
+    >
+  } @else {
+    <div
+      class="sample-status"
+      [class.status-hidden]="
+        vm.midi.outputId !== 'browser' ||
+        (vm.midi.browser.channels[t.id].loaded &&
+          !vm.midi.browser.bankLoading &&
+          !vm.midi.browser.error)
+      "
+      [class.loading]="vm.midi.outputId === 'browser' && !vm.midi.browser.trackReady(t.id)"
+    >
+      {{
+        vm.midi.outputId === 'browser'
+          ? vm.midi.browser.channels[t.id].status
+          : 'MIDI-Kanal ' + (vm.midi.channel(t.id) + 1)
+      }}
+    </div>
+  }
+</div>
+@if (vm.midi.clavinova && !t.length) {
+  <div
+    class="instrument-follow"
+    [title]="
+      (vm.midi.clavinovaProgramKnown
+        ? 'Zuletzt vom Klavier gemeldet: '
+        : 'Noch kein Klangwechsel empfangen; Annahme: ') +
+      vm.instrumentName(vm.midi.clavinovaProgram)
+    "
+  >
+    {{ t.state === 'recording' ? vm.instrumentName(t.program) : 'Vom Klavier bei Aufnahme' }}
+  </div>
+} @else {
+  <instrument-picker
+    [label]="'Instrument Spur ' + (t.id + 1)"
+    [pickerId]="'instruments-' + t.id"
+    [value]="t.program"
+    [groups]="vm.instrumentGroups(t.id)"
+    (valueChange)="vm.program(t, $event); workspace.refresh()"
+    (committed)="vm.instrumentCommitted(t.id); workspace.refresh()"
+  />
+}
+
+<div class="track-values">
+  <div class="volume">
+    <label [for]="'volume-' + t.id"
+      >Lautstärke <span>{{ (t.volume / 127) * 100 | number: '1.0-0' }} %</span></label
+    ><input
+      [id]="'volume-' + t.id"
+      type="range"
+      min="0"
+      max="127"
+      [(ngModel)]="t.volume"
+      (input)="vm.midi.configure(t.id); workspace.refresh()"
+    />
+  </div>
+  <div class="track-bars" [class.has-fixed-bars]="!!fixedBars">
+    <label
+      class="track-length"
+      [attr.for]="t.state === 'empty' ? 'record-bars-midi-' + t.id : null"
+    >
+      <span>Takte</span>
+      @if (t.state === 'empty') {
+        <input
+          [id]="'record-bars-midi-' + t.id"
+          type="number"
+          min="1"
+          max="64"
+          step="1"
+          placeholder="Manuell"
+          title="Leer = manuelle Aufnahme. Eine feste Taktzahl beendet die Erstaufnahme automatisch."
+          [attr.aria-label]="'Feste Taktzahl Spur ' + (t.id + 1)"
+          [class.has-value]="!!t.fixedBars"
+          [ngModel]="t.fixedBars"
+          (ngModelChange)="vm.setRecordBars(t, $event); workspace.refresh()"
+        />
+      } @else {
+        <output class="track-bars-value" [attr.aria-label]="'Taktzahl Spur ' + (t.id + 1)">{{
+          vm.barCount(t) || '—'
+        }}</output>
+      }
+    </label>
+    @if (t.state === 'empty' && t.fixedBars) {
+      <button
+        type="button"
+        class="bars-clear"
+        [attr.aria-label]="'Takte Spur ' + (t.id + 1) + ' zurücksetzen'"
+        title="Auf Manuell zurücksetzen"
+        (click)="vm.setRecordBars(t, null); workspace.refresh()"
+      >
+        ×
+      </button>
+    }
+  </div>
+</div>
+<div class="track-actions">
+  <button
+    class="mute-button"
+    [class.active]="t.muted"
+    [class.unmute-queued]="t.unmuteAt !== undefined"
+    [attr.aria-pressed]="t.muted"
+    [attr.aria-label]="'Spur ' + (t.id + 1) + ': Stumm ' + (t.muted ? 'an' : 'aus')"
+    [title]="
+      t.unmuteAt !== undefined
+        ? 'Aktivierung vorgemerkt; erneut drücken zum Abbrechen'
+        : 'Stumm umschalten (Shift+M)'
+    "
+    (click)="vm.mute(t.id); workspace.refresh()"
+  >
+    Stumm: {{ t.muted ? 'An' : 'Aus' }}</button
+  ><button
+    class="delete"
+    [disabled]="t.state === 'empty'"
+    (click)="vm.clear(t.id); workspace.refresh()"
+    [attr.aria-label]="'Spur ' + (t.id + 1) + ' löschen'"
+  >
+    Löschen
+  </button>
+</div>

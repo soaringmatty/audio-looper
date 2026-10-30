@@ -1,0 +1,763 @@
+/* Compact, content-sized performance cards. No popovers or stretched rows. */
+.performance-cards {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.8fr) minmax(0, 1.8fr);
+  align-items: start;
+  justify-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+.performance-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+}
+.performance-heading h2 {
+  margin: 0;
+  font-size: 14px;
+  color: #dfedff;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.performance-heading h2 > span {
+  font-size: 11px;
+  font-weight: 400;
+  color: #abc4df;
+}
+.effects-card {
+  display: grid;
+  grid-template-columns: auto minmax(190px, 1fr);
+  gap: 9px 16px;
+  padding: 10px 12px;
+  min-width: 0;
+  align-items: center;
+}
+.effects-card > .performance-heading {
+  grid-column: 1;
+  grid-row: 1;
+}
+.effects-card > .fx-controls {
+  grid-column: 2;
+  grid-row: 1;
+}
+.effects-card > .fx-presets {
+  grid-column: 1/-1;
+  grid-row: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.effects-card .fx-presets button {
+  padding: 6px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.effects-card .fx-presets button.active {
+  background: #315c88;
+  border-color: #8ac1ff;
+  color: #edf6ff;
+}
+.fx-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.effects-card .fx-intensity {
+  width: auto;
+  max-width: 220px;
+  min-width: 100px;
+  margin: 0;
+  flex: 1;
+  display: grid;
+  gap: 7px;
+}
+.fx-intensity label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  gap: 6px;
+}
+.fx-intensity input:disabled {
+  opacity: 0.35;
+}
+.fx-controls > button {
+  padding: 5px 9px;
+  font-size: 12px;
+}
+.fx-controls > .clipping {
+  font-size: 11px;
+}
+.transport.metronome-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto max-content minmax(0, 1fr);
+  align-items: center;
+  column-gap: 16px;
+  padding: 10px 12px;
+  min-width: 0;
+  height: 76px;
+  min-height: 76px;
+}
+.metronome-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.tempo-slot {
+  min-width: 0;
+  height: 50px;
+  display: flex;
+  align-items: center;
+}
+.metro-button {
+  min-width: 62px !important;
+  padding: 6px 9px !important;
+}
+.metro-button.active {
+  background: #315c88;
+}
+.metronome-card .inline-label input {
+  width: 87px;
+  font-size: 18px;
+}
+.metronome-card .signature {
+  width: 70px;
+  height: 34px;
+}
+.metro-level {
+  display: grid;
+  gap: 7px;
+  font-size: 11px;
+  min-width: 75px;
+  max-width: 125px;
+  flex: 1;
+}
+.metronome-card .metro-volume {
+  width: 100%;
+}
+.tempo-inline {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+  height: 50px;
+  padding: 0;
+  border: 0;
+}
+.tempo-inline > label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+.tempo-inline .tempo-choice {
+  flex: 1 1 auto;
+  min-width: 110px;
+}
+.tempo-inline select {
+  font-size: 12px;
+  height: 32px;
+  margin: 0;
+}
+.tempo-inline > label:not(.tempo-choice) select {
+  width: 58px;
+}
+.tempo-inline input {
+  width: 44px;
+  height: 32px;
+  padding: 5px;
+  background: #101822;
+  border: 1px solid #4a5b70;
+  border-radius: 5px;
+  color: #e4edf8;
+}
+.tempo-inline > strong {
+  font-size: 12px;
+  align-self: center;
+  white-space: nowrap;
+}
+.tempo-inline info-hint {
+  align-self: center;
+  flex: 0 0 auto;
+}
+.status-hidden {
+  visibility: hidden;
+}
+.auto-countdown {
+  font-size: 12px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.piano-toggle {
+  font-size: 12px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.track {
+  cursor: pointer;
+}
+.track input,
+.track select {
+  cursor: auto;
+}
+.track select,
+.track button {
+  cursor: pointer;
+}
+.workspace {
+  grid-template-rows: 44px 70px auto minmax(320px, 1fr) 36px;
+}
+.workspace.with-piano {
+  grid-template-rows: 44px 70px auto minmax(320px, 0.64fr) 36px minmax(168px, 0.36fr);
+}
+.audio-workspace {
+  grid-template-rows: 44px 174px auto minmax(300px, 1fr) 32px;
+  min-height: 700px;
+}
+.audio-workspace .tracks {
+  max-height: none;
+}
+.audio-track-source strong {
+  font-size: 12px;
+}
+.monitor-routing .routing-volume {
+  grid-row: 2 / span 2;
+  align-self: center;
+}
+.monitor-routing .routing-actions {
+  grid-row: 4;
+}
+@media (max-height: 820px) and (min-width: 1001px) {
+  .workspace.with-piano {
+    grid-template-rows: 40px 64px auto minmax(300px, 0.7fr) 32px minmax(150px, 0.3fr);
+  }
+}
+@media (max-width: 1250px) and (min-width: 1001px) {
+  .performance-cards {
+    grid-template-columns: minmax(340px, 0.8fr) minmax(0, 1.8fr);
+  }
+  .effects-card {
+    gap: 9px;
+  }
+  .effects-card .fx-presets {
+    gap: 4px;
+  }
+  .effects-card .fx-presets button {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  .audio-workspace {
+    grid-template-rows: 44px 184px auto minmax(300px, 1fr) 32px;
+    min-height: 710px;
+  }
+  .metronome-controls {
+    gap: 7px;
+  }
+}
+@media (max-width: 1000px) {
+  .performance-cards {
+    grid-template-columns: 1fr;
+  }
+  .effects-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 9px;
+  }
+  .effects-card .fx-controls {
+    justify-content: flex-start;
+  }
+  .effects-card .fx-presets {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .effects-card .fx-intensity {
+    max-width: none;
+  }
+  .transport.metronome-card {
+    min-height: 0;
+    gap: 9px;
+  }
+  .metro-level {
+    max-width: none;
+  }
+  .workspace {
+    grid-template-rows: 42px 148px auto minmax(300px, 1fr) 28px 36px;
+  }
+  .workspace.with-piano {
+    grid-template-rows: 42px 148px auto minmax(300px, 0.65fr) 28px 36px minmax(180px, 0.35fr);
+  }
+  .audio-workspace {
+    min-height: 1000px;
+    grid-template-rows: 46px auto auto minmax(340px, 1fr) 32px 36px;
+  }
+  .monitor-routing .routing-volume {
+    grid-row: 2;
+    grid-column: 1;
+  }
+  .monitor-routing .routing-actions {
+    grid-row: 2;
+    grid-column: 2;
+  }
+  .piano-toggle {
+    font-size: 11px;
+  }
+  .track-info > .pending {
+    font-size: 11px;
+  }
+}
+@media (max-width: 650px) {
+  .performance-cards {
+    grid-template-columns: 1fr;
+  }
+  .audio-workspace {
+    min-height: 1230px;
+  }
+  .effects-card {
+    display: grid;
+    grid-template-columns: auto minmax(160px, 1fr);
+    gap: 8px;
+  }
+  .effects-card .fx-presets {
+    gap: 4px;
+  }
+  .effects-card .fx-presets button {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  .effects-card .performance-heading h2 > span {
+    display: none;
+  }
+  .fx-controls {
+    gap: 6px;
+  }
+  .metronome-controls {
+    gap: 8px;
+  }
+  .metronome-card .inline-label input {
+    width: 78px;
+    font-size: 17px;
+  }
+  .monitor-routing .routing-volume,
+  .monitor-routing .routing-actions {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .monitor-routing {
+    grid-template-rows: 22px 38px 32px;
+  }
+  .tempo-inline .tempo-choice {
+    min-width: 90px;
+  }
+  .shortcuts span:nth-child(2) {
+    display: none;
+  }
+}
+.metronome-controls .metro-button {
+  margin-left: 0;
+}
+.workspace:not(.audio-workspace) > .metronome-card {
+  width: 100%;
+  min-height: 76px;
+}
+
+/* One state-independent geometry for empty, recording and queued cards. */
+.track,
+.audio-workspace .audio-track {
+  grid-template-rows: 42px minmax(96px, 1fr) 20px 34px 64px 32px;
+  row-gap: 4px;
+  padding: 0 12px 10px;
+}
+.track > .track-heading {
+  grid-row: 1;
+}
+.track > .dial-slot {
+  grid-row: 2;
+}
+.track > .track-info {
+  grid-row: 3;
+}
+.track > instrument-picker,
+.track > .audio-track-source {
+  grid-row: 4;
+}
+.track > .track-values {
+  grid-row: 5;
+}
+.track > .track-actions {
+  grid-row: 6;
+}
+.track > .track-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 6px;
+  margin: 0 -12px;
+  padding: 0 10px;
+  height: 42px;
+  min-height: 42px;
+}
+.track .track-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 12px;
+}
+.track .track-title {
+  font: inherit;
+}
+.track .track-select kbd {
+  display: inline-block;
+  flex: 0 0 auto;
+  margin: 0;
+}
+.track .loop-button {
+  width: min(195px, calc(100cqh - 14px), calc(100cqw - 18px));
+  height: min(195px, calc(100cqh - 14px), calc(100cqw - 18px));
+}
+.track .queued .loop-icon {
+  display: block;
+}
+.track-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 20px;
+}
+.track-info > .pending,
+.track-info > .sample-status {
+  flex: 1;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.track-info > .pending:empty {
+  visibility: hidden;
+}
+.track-bars.has-fixed-bars input {
+  border: 2px solid #c9d1dc;
+  background: #2b3038;
+  color: #f4f6f8;
+  font-weight: 700;
+}
+.track > .instrument-follow {
+  grid-row: 4;
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #b8c9de;
+  font-size: 12px;
+}
+.track .mute-button.active {
+  background: #344457;
+  border: 2px solid #c9d5e3;
+  color: #f5f8fc;
+}
+.track .mute-button.unmute-queued {
+  border-style: dashed;
+}
+.track .mute-indicator {
+  border-radius: 4px;
+  padding: 1px 7px;
+  background: #283647;
+  border: 1px solid #c9d5e3;
+  color: #f5f8fc;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.track.muted .loop-inner {
+  opacity: 1;
+}
+.timing-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+.timing-check > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 6px 9px;
+}
+.timing-check-status {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: #b8c9de;
+}
+.timing-check-status > span,
+.timing-check-status > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timing-check-status > strong {
+  color: #e4edf8;
+}
+.audio-track-source {
+  overflow: hidden;
+}
+.audio-track-source strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.track-values {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  align-items: center;
+  column-gap: 18px;
+  padding-block: 10px;
+  min-width: 0;
+}
+.track-values .volume,
+.track-bars {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 16px 28px;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+}
+.track-bars {
+  position: relative;
+}
+.track-values .volume label {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  align-items: center;
+}
+.track-values .volume label span {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.track-values .volume input {
+  grid-column: 1/-1;
+  grid-row: 2;
+  width: 100%;
+  min-width: 0;
+  align-self: center;
+}
+.track-bars .track-length {
+  display: grid;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  grid-template-rows: 16px 28px;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: #bfd4ed;
+}
+.track-length input,
+.track-bars-value {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 4px 6px;
+  border: 1px solid #4a5b70;
+  border-radius: 5px;
+  background: #101822;
+  color: #e4edf8;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+}
+.track-length input::placeholder {
+  color: #9bb1cb;
+  font-size: 11px;
+}
+.track-bars-value {
+  border-color: transparent;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.track-length input {
+  appearance: textfield;
+}
+.track-length input::-webkit-inner-spin-button,
+.track-length input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.track-length input.has-value {
+  padding-right: 26px;
+}
+.track .bars-clear {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #b9cce3;
+  font-size: 18px;
+  line-height: 24px;
+}
+.track .bars-clear:hover {
+  background: #30455e;
+  color: #fff;
+}
+.track .track-actions {
+  height: 32px;
+}
+@media (max-width: 1350px) and (min-width: 1001px) {
+  .track > .track-heading {
+    padding: 0 7px;
+    column-gap: 3px;
+  }
+  .track-values {
+    column-gap: 14px;
+  }
+  .track-values .volume label {
+    font-size: 11px;
+  }
+  .track .track-time {
+    font-size: 13px;
+  }
+}
+.workspace:focus {
+  outline: none;
+}
+.performance-alert {
+  position: fixed;
+  z-index: 40;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(760px, calc(100% - 24px));
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border: 2px solid #e7ad4a;
+  border-radius: 8px;
+  background: #372a12;
+  color: #fff0cb;
+  box-shadow: 0 6px 24px #0009;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+.performance-alert strong {
+  color: #ffd073;
+}
+.performance-alert button {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.diagnostic-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.diagnostic-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #bdcee2;
+}
+.midi-diagnostics {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #455a72;
+}
+
+@media (max-width: 1000px) {
+  .transport.metronome-card {
+    min-height: 76px;
+  }
+  .effects-card {
+    max-width: 590px;
+  }
+}
+@media (max-width: 1250px) and (min-width: 1001px) {
+  .audio-workspace .metronome-card {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 40px 50px;
+    row-gap: 12px;
+    height: 124px;
+    min-height: 124px;
+  }
+  .audio-workspace .metronome-card > .tempo-slot {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+@media (max-width: 850px) {
+  .transport.metronome-card,
+  .workspace:not(.audio-workspace) > .metronome-card {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 40px 50px;
+    row-gap: 12px;
+    height: 124px;
+    min-height: 124px;
+  }
+  .metronome-card > .tempo-slot {
+    grid-column: 1/-1;
+    grid-row: 2;
+  }
+  .metronome-controls {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 520px) {
+  .transport.metronome-card,
+  .workspace:not(.audio-workspace) > .metronome-card {
+    grid-template-rows: 96px 50px;
+    height: 180px;
+    min-height: 180px;
+  }
+  .metronome-controls {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .metronome-card .signature {
+    width: 58px;
+  }
+  .metronome-card .metro-level {
+    max-width: 90px;
+  }
+  .tempo-inline .tempo-choice {
+    min-width: 80px;
+  }
+  .tempo-inline > strong {
+    font-size: 11px;
+  }
+}

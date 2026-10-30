@@ -1,0 +1,371 @@
+@let vm = workspace.view();
+<div class="settings-heading">
+  <h2 id="settings-title">Einstellungen</h2>
+  <button
+    id="close-settings"
+    aria-label="Einstellungen schließen"
+    (click)="vm.closeSettings(); workspace.refresh()"
+  >
+    ×
+  </button>
+</div>
+<nav class="settings-tabs" aria-label="Einstellungsbereiche">
+  <button
+    [class.active]="vm.settingsTab === 'settings'"
+    [attr.aria-pressed]="vm.settingsTab === 'settings'"
+    (click)="vm.settingsTab = 'settings'; workspace.refresh()"
+  >
+    Einstellungen</button
+  ><button
+    [class.active]="vm.settingsTab === 'midi'"
+    [attr.aria-pressed]="vm.settingsTab === 'midi'"
+    (click)="vm.settingsTab = 'midi'; workspace.refresh()"
+  >
+    MIDI</button
+  ><button
+    [class.active]="vm.settingsTab === 'diagnostics'"
+    [attr.aria-pressed]="vm.settingsTab === 'diagnostics'"
+    (click)="vm.settingsTab = 'diagnostics'; workspace.refresh()"
+  >
+    Diagnose
+  </button>
+  <button
+    [class.active]="vm.settingsTab === 'help'"
+    [attr.aria-pressed]="vm.settingsTab === 'help'"
+    (click)="vm.settingsTab = 'help'; workspace.refresh()"
+  >
+    Bedienhilfe
+  </button>
+</nav>
+<div class="settings-content">
+  @if (vm.settingsTab === 'settings') {
+    <div class="setting-row">
+      <label for="measured-metronome">Metronom-Versatz</label>
+      <info-hint
+        label="Info zur Metronom-Korrektur"
+        text="Bei externem MIDI-Ausgang wird der Laptop-Klick nach einer stabilen Sechs-Anschlag-Messung früher geplant. Aus verwendet nur den Browser-Schätzwert. Noten und Loops bleiben unverändert. Bei anderem Audioausgang oder geänderten Klangverbesserungen neu messen."
+      />
+      <select
+        id="measured-metronome"
+        [ngModel]="vm.useMeasuredMetronome"
+        (ngModelChange)="vm.setMeasuredMetronome($event); workspace.refresh()"
+      >
+        <option [ngValue]="true">Messwert verwenden</option>
+        <option [ngValue]="false">Nur Browser-Schätzung</option>
+      </select>
+    </div>
+    <p class="settings-note">
+      Klick-Vorlauf: {{ vm.metro.advanceMs | number: '1.0-1' }} ms ·
+      {{
+        vm.midi.outputId === 'browser'
+          ? 'Bei Browser-Ausgang keine zusätzliche Klickkorrektur.'
+          : vm.useMeasuredMetronome && vm.timing.calibration
+            ? 'Gemessen, aktiv.'
+            : 'Browser-Schätzung aktiv.'
+      }}
+      @if (vm.timing.calibration) {
+        Gespeichert: {{ vm.timing.calibration.advanceMs | number: '1.0-1' }} ms.
+        <button (click)="vm.resetMetronomeCalibration(); workspace.refresh()">
+          Messkorrektur zurücksetzen
+        </button>
+      }
+    </p>
+    <div class="setting-row">
+      <label for="unmute-mode-midi">Entmuten</label>
+      <info-hint
+        label="Info zum Entmuten"
+        text="Stummschalten wirkt sofort. Entmuten am nächsten eigenen Loop-Anfang kann durch erneutes Drücken abgebrochen werden. Shift+M bedient die ausgewählte Spur."
+      />
+      <select
+        id="unmute-mode-midi"
+        [(ngModel)]="vm.engine.unmuteMode"
+        (ngModelChange)="vm.savePreferences(); workspace.refresh()"
+      >
+        <option value="cycle">Nächster Loop-Anfang</option>
+        <option value="immediate">Sofort</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label for="soundbank">Browser-Soundbank</label
+      ><info-hint
+        label="Info zur Soundbank"
+        text="Die ganze Bank wird einmal geladen und nach Möglichkeit gecacht. Instrumentwechsel benötigen keine Downloads. Beim Bankwechsel können laufende Noten neu artikulieren."
+      /><select
+        id="soundbank"
+        [disabled]="vm.midi.browser.bankLoading"
+        [ngModel]="vm.midi.browser.requestedBank"
+        (ngModelChange)="vm.setSoundBank($event); workspace.refresh()"
+      >
+        @for (bank of vm.soundBanks; track bank.id) {
+          <option [value]="bank.id">
+            {{ bank.name }} · {{ bank.bytes / 1048576 | number: '1.0-0' }} MiB
+          </option>
+        }
+      </select>
+    </div>
+    @if (vm.midi.browser.error) {
+      <p class="warning">{{ vm.midi.browser.error }}</p>
+      <button (click)="vm.setSoundBank(vm.midi.browser.requestedBank); workspace.refresh()">
+        Soundbank erneut laden
+      </button>
+    }
+    <div class="setting-row">
+      <label for="tolerance">Starttoleranz</label
+      ><info-hint
+        label="Info zur Starttoleranz"
+        text="Knapp vor Aufnahme-/Overdub-Start angeschlagene, noch gehaltene Noten werden bei Position 0 übernommen. Bereits losgelassene oder ältere Noten nicht. Keine Zeitverschiebung und kein erneuter Live-Anschlag."
+      /><select
+        id="tolerance"
+        [(ngModel)]="vm.engine.startToleranceMs"
+        (ngModelChange)="vm.savePreferences(); workspace.refresh()"
+      >
+        <option [ngValue]="0">Aus</option>
+        <option [ngValue]="25">25 ms</option>
+        <option [ngValue]="50">50 ms (Standard)</option>
+        <option [ngValue]="100">100 ms</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label for="after-record">Nach Erstaufnahme</label
+      ><info-hint
+        label="Info zum Aufnahmeabschluss"
+        text="Direkt Overdub spielt den Loop ab und nimmt weitere Eingaben additiv auf. Nur Wiedergabe spielt ohne weitere Aufnahme."
+      /><select
+        id="after-record"
+        [(ngModel)]="vm.engine.afterRecord"
+        (ngModelChange)="vm.savePreferences(); workspace.refresh()"
+      >
+        <option value="dub">Direkt Overdub</option>
+        <option value="play">Nur Wiedergabe</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label for="progress-ring">Fortschrittsring</label
+      ><info-hint
+        label="Info zum Fortschrittsring"
+        text="Eigener Loop zeigt die Position innerhalb jeder Spur. Gemeinsames Raster zeigt die gemeinsame Zeitbasis."
+      /><select
+        id="progress-ring"
+        [(ngModel)]="vm.commonRing"
+        (ngModelChange)="vm.savePreferences(); workspace.refresh()"
+      >
+        <option [ngValue]="false">Eigener Loop</option>
+        <option [ngValue]="true">Gemeinsames Raster</option>
+      </select>
+    </div>
+    <p class="settings-note">
+      Ausgang und Live-Mithören auf der Hauptseite; Gerätezuordnung und Pedalsteuerung unter MIDI.
+    </p>
+  }
+  @if (vm.settingsTab === 'midi') {
+    <div class="midi-setting">
+      <label class="check"
+        ><input
+          type="checkbox"
+          [ngModel]="vm.midi.autoClavinova"
+          (ngModelChange)="vm.midi.setAutoClavinova($event); workspace.refresh()"
+        />Clavinova automatisch als CLP-625 erkennen</label
+      ><info-hint
+        label="Info zur Clavinova-Automatik"
+        text="Standardmäßig an für Dein Setup. Portnamen mit Clavinova oder CLP-625 erhalten automatisch das CLP-625-Profil. Für andere Clavinova-Modelle ausschalten und das Profil manuell wählen."
+      />
+    </div>
+    <div class="setting-row">
+      <label for="output-profile">Profil des gewählten Ausgangs</label
+      ><info-hint
+        label="Info zum Geräteprofil"
+        text="Manuelle Zuordnung für unklare Portnamen. Die Zuordnung wird pro Ausgang gespeichert. Die eingeschaltete Clavinova-Automatik hat beim Verbinden Vorrang."
+      /><select
+        id="output-profile"
+        [disabled]="
+          !vm.midi.outputId || vm.midi.outputId === 'browser' || vm.midi.autoProfileActive
+        "
+        [ngModel]="vm.midi.outputProfile"
+        (ngModelChange)="vm.setProfile($event); workspace.refresh()"
+      >
+        <option value="gm">General MIDI</option>
+        <option value="clp625">Yamaha CLP-625</option>
+      </select>
+    </div>
+    <div class="midi-setting">
+      <label class="check"
+        ><input
+          type="checkbox"
+          [ngModel]="vm.midi.clavinova || vm.midi.syncInstrument"
+          [disabled]="vm.midi.clavinova"
+          (ngModelChange)="vm.midi.setSyncInstrument($event); workspace.refresh()"
+        />Instrumentwahl am Klavier übernehmen</label
+      ><info-hint
+        label="Info zur Instrumentübernahme"
+        text="CLP-Profil: letzten gemeldeten Klavierklang geräteweit merken und beim tatsächlichen Aufnahmestart übernehmen. Ohne empfangenen Klangwechsel wird CFX Grand angenommen. Bestehende Loops behalten ihren Klang; UI-Wechsel erst nach der Erstaufnahme. Andere Profile: optional der ausgewählten Spur folgen. Program Change und Control Change am Yamaha müssen eingeschaltet sein."
+      />
+    </div>
+    <div class="midi-setting">
+      <label class="check"
+        ><input
+          type="checkbox"
+          [ngModel]="vm.midi.softPedalControl"
+          (ngModelChange)="vm.midi.setSoftPedalControl($event); workspace.refresh()"
+        />Linkes Pedal: Aufnahme / Overdub steuern</label
+      ><info-hint
+        label="Info zur Pedalsteuerung"
+        text="CC67: einmal drücken wirkt wie Leertaste/Enter für die ausgewählte Spur; erst nach Loslassen erneut auslösen. Im Einstellungs-Panel keine Aktion. CC67 wird dann nicht aufgenommen oder zum Synth weitergeleitet. Bei Local Control an kann das Pedal den lokalen Klang trotzdem verändern. Ausgeschaltet bleibt die normale Soft-Pedal-Funktion."
+      />
+    </div>
+  }
+  @if (vm.settingsTab === 'diagnostics') {
+    <section class="midi-diagnostics">
+      <h3>MIDI-Trace</h3>
+      <label class="check"
+        ><input
+          type="checkbox"
+          [ngModel]="vm.midi.trace.enabled"
+          (ngModelChange)="vm.midi.trace.setEnabled($event); workspace.refresh()"
+        />Lokal aufzeichnen</label
+      >
+      <p class="diagnostic-note">
+        {{ vm.midi.trace.status }}. Begrenzter Verlauf mit MIDI-Noten, Pedalen und Gerätenamen;
+        keine Audioaufnahme und kein Upload. Nach Löschen automatisch gespeichert, markierte Hänger
+        bleiben über Reload erhalten. Externe Befehle sind keine Empfangsbestätigung des Klaviers.
+      </p>
+      <div class="diagnostic-actions">
+        <button [disabled]="vm.diagnosticBusy" (click)="vm.exportTrace(true); workspace.refresh()">
+          Hänger markieren & Diagnose exportieren</button
+        ><button
+          [disabled]="vm.diagnosticBusy"
+          (click)="vm.exportTrace(false); workspace.refresh()"
+        >
+          Gespeicherte Diagnose exportieren
+        </button>
+      </div>
+      <h3>MIDI-Timing</h3>
+      <p class="diagnostic-note">
+        Eingang → Handler: {{ vm.midi.timingStats.lastDispatchMs | number: '1.1-1' }} ms, Maximum
+        {{ vm.midi.timingStats.maxDispatchMs | number: '1.1-1' }} ms. Browser-Audio: Buffer
+        {{ vm.midi.browser.diagnostics().baseLatencyMs | number: '1.1-1' }} ms, Ausgabe
+        {{
+          vm.midi.browser.diagnostics().outputLatencyMs === null
+            ? 'nicht verfügbar'
+            : (vm.midi.browser.diagnostics().outputLatencyMs | number: '1.1-1') + ' ms'
+        }}
+        (Browser-Schätzwerte, keine gesamte Live-Latenz).
+      </p>
+      <p class="diagnostic-note">
+        Audio-Clock: {{ vm.midi.browser.context?.sampleRate || '–' }} Hz · Buffer + Ausgabe:
+        {{
+          vm.midi.browser.diagnostics().estimatedTotalMs === null
+            ? 'nicht verfügbar'
+            : (vm.midi.browser.diagnostics().estimatedTotalMs | number: '1.1-1') + ' ms geschätzt'
+        }}. Fortschrittsringe berücksichtigen die Audio-Ausgabezeit. MIDI-Synth und Metronom teilen
+        dieselbe Audio-Clock. Bei externem MIDI-Ausgang wird der Laptop-Klick anhand des Messwerts
+        oder Browser-Schätzwerts früher geplant (aktuell
+        {{ vm.metro.advanceMs | number: '1.1-1' }} ms Vorlauf). Das verkürzt keine physische
+        Live-Ausgabelatenz. Bei deutlich verzögertem Laptop-Klang einen anderen kabelgebundenen
+        Audioausgang und deaktivierte Klangverbesserungen vergleichen.
+      </p>
+      <p class="diagnostic-note">
+        Einspielmessung: sechs einzelne Noten zum Klick. Ergebnis enthält Spielverhalten und
+        Signalweg, misst nicht isoliert die MIDI-/Hardwarelatenz. Pro MIDI-Ein-/Ausgang gespeichert;
+        bei anderem Audioausgabegerät neu messen. Keine automatische Verschiebung von Noten, keine
+        Verringerung der Live-Latenz.
+      </p>
+      <div class="diagnostic-actions">
+        <button
+          [disabled]="vm.engine.busy || vm.timing.active"
+          (click)="vm.startTiming(); workspace.refresh()"
+        >
+          Auf Hauptseite messen</button
+        ><button [disabled]="!vm.timing.active" (click)="vm.timing.cancel(); workspace.refresh()">
+          Messung abbrechen
+        </button>
+      </div>
+      <p role="status">{{ vm.timing.message }}</p>
+      @if (vm.timing.result; as result) {
+        <p>
+          Einspielversatz zum Klick: <strong>{{ result.offsetMs | number: '1.1-1' }} ms</strong> ·
+          Streuung (MAD): {{ result.spreadMs | number: '1.1-1' }} ms. Positiv = nach dem Klick.
+        </p>
+        @if (result.outputEstimateMs) {
+          <p class="diagnostic-note">
+            Nach Abzug von {{ result.outputEstimateMs | number: '1.1-1' }} ms geschätzter
+            Audioausgabe: {{ result.adjustedOffsetMs | number: '1.1-1' }} ms. Weiterhin
+            einschließlich Spielverhalten; keine gemessene Taste-bis-Ton-Latenz und keine
+            automatische Notenverschiebung.
+          </p>
+        }
+      }
+    </section>
+  }
+  @if (vm.settingsTab === 'help') {
+    <h3>Spielen & Loopen</h3>
+    <ul>
+      <li><kbd>1–5</kbd> Spur wählen; <kbd>Space / Enter</kbd> Aufnahme / Overdub.</li>
+      <li>
+        Overdub startet am Loop-Anfang; nochmal drücken bricht die Vormerkung ab. Ein laufender
+        Overdub endet in der ersten Zyklushälfte sofort, ab der Mitte am Loop-Ende; erneut drücken
+        hebt das vorgemerkte Ende auf.
+      </li>
+      <li>
+        <kbd>T</kbd> Metronom; <kbd>Shift+M</kbd> Stumm umschalten; <kbd>Entf</kbd> Spur löschen.
+      </li>
+      <li>
+        Browser-Piano: Y X C V B N M weiß, S D G H J schwarz. <kbd>− / +</kbd> wechselt die Oktave.
+      </li>
+    </ul>
+    <h3>Klavier & MIDI</h3>
+    <ul>
+      <li>
+        Gerätezugriff wird beim Öffnen angefragt; Browser-Piano funktioniert auch ohne Freigabe.
+      </li>
+      <li>
+        „Clavinova“ und „CLP-625“ werden automatisch Deinem CLP-625 zugeordnet. Automatik, manuelles
+        Profil und Pedalsteuerung findest Du unter MIDI.
+      </li>
+      <li>
+        CLP-Profil: Klangwechsel am Klavier werden geräteweit gemerkt; ein neuer Track übernimmt
+        diesen Klang beim tatsächlichen Aufnahmestart. Bis zum ersten empfangenen Klangwechsel wird
+        CFX Grand angenommen. Bestehende Loops behalten ihren Klang und können per UI geändert
+        werden. Program Change und Control Change am Yamaha müssen an sein. Die UI ändert nicht die
+        lokale Panel-Auswahl.
+      </li>
+      <li>
+        Linkes Pedal: Aufnahme / Overdub wie Leertaste/Enter. Zum erneuten Auslösen vollständig
+        loslassen. Im Einstellungs-Panel deaktiviert; unter MIDI abschaltbar.
+      </li>
+      <li>
+        Local Control an: Du hörst beim Spielen den Klang am Klavier, im Loop den Track-Klang.
+        Live-Mithören aus vermeidet doppelten Klang.
+      </li>
+      <li>
+        Live-Mithören an und Local Control aus: Eingaben werden mit dem Track-Klang zurückgespielt.
+        Local Control muss bewusst am Klavier umgestellt werden.
+      </li>
+      <li>
+        Das CLP-625 braucht MIDI-Empfang auf ALL für mehrere Spuren. Generisches externes
+        GM-Drum-Monitoring teilt Kanal 10 mit der Drum-Spur.
+      </li>
+      <li>
+        An der Loop-Naht gehaltene Töne klingen bis zum ersten Akkord weiter; gemeinsame Töne des
+        ersten Akkords werden verbunden. Explizite Pausen bleiben bestehen. Ein vorzeitiges
+        Overdub-Ende schließt seinen Take weiterhin ab. Der Notfallbutton beendet Stimmen, nicht den
+        Transport.
+      </li>
+    </ul>
+    <h3>Wichtig</h3>
+    <ul>
+      <li>
+        Loops liegen nur im RAM; Neuladen verwirft sie. Dieser Modus zeichnet MIDI auf; echte
+        Audioaufnahme im Audio-Modus.
+      </li>
+      <li>App im Vordergrund lassen. MIDI-Ausgabe nicht über einen Loopback erneut aufnehmen.</li>
+    </ul>
+    <p class="licenses">
+      GeneralUser GS: S. Christian Collins ·
+      <a href="soundfonts/GeneralUser-LICENSE.txt" target="_blank" rel="noopener">Lizenz</a>.
+      FluidR3 GM: Frank Wen ·
+      <a href="soundfonts/FluidR3-COPYING.txt" target="_blank" rel="noopener">MIT</a>. SpessaSynth ·
+      <a href="audio/SpessaSynth-LICENSE.txt" target="_blank" rel="noopener">Apache-2.0</a>. MIDI
+      bleibt lokal.
+    </p>
+  }
+</div>
