@@ -45,7 +45,16 @@
   /></label>
 </div>
 <div class="tempo-slot">
-  @if (!vm.engine.busy) {
+  @if (vm.metro.outputMode === 'midi' && !vm.engine.busy) {
+    <p class="settings-note">
+      MIDI-Klick über den gewählten Ausgang, Kanal 11. Kein Laptop-Klick und keine
+      Laptop-Kalibrierung.
+      @if (vm.midi.outputId === 'browser' || !vm.midi.outputReady) {
+        Bitte einen verbundenen MIDI-Ausgang wählen.
+      }
+    </p>
+  }
+  @if (!vm.engine.busy && vm.metro.outputMode === 'laptop') {
     <div class="timing-check" aria-label="Timing-Check">
       @if (vm.timing.active) {
         <button (click)="vm.timing.cancel(); workspace.refresh()">Messung abbrechen</button>
@@ -69,7 +78,10 @@
             @if (result.spreadMs > 25) {
               Hohe Streuung: {{ result.spreadMs | number: '1.0-1' }} ms · erneut messen.
             } @else if (
-              vm.midi.outputId !== 'browser' && vm.timing.calibration && vm.useMeasuredMetronome
+              vm.metro.outputMode === 'laptop' &&
+              vm.midi.outputId !== 'browser' &&
+              vm.timing.calibration &&
+              vm.useMeasuredMetronome
             ) {
               Klick-Vorlauf: {{ vm.metro.advanceMs | number: '1.0-1' }} ms · aktiv
             } @else {
@@ -82,7 +94,7 @@
         }
       </div>
     </div>
-  } @else if (vm.tempoCandidates.length) {
+  } @else if (vm.engine.busy && vm.tempoCandidates.length) {
     <tempo-suggestion
       class="tempo-inline"
       [locked]="vm.tempoChoiceLocked"

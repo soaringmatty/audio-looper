@@ -52,7 +52,7 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "tsConfig": "tsconfig.spec.json",
-            "include": ["tests/angular-refactor.test.ts"],
+            "include": ["tests/angular-refactor.test.ts", "tests/midi-performance-start.test.ts"],
             "watch": false
           }
         }

@@ -25,6 +25,13 @@ class LooperProcessor extends Xt {
    if(m.type==='looperClear'){
     event.stopImmediatePropagation();this.pending.length=0;this.deliver({type:'stopAll',channelNumber:-1,data:1});return;
    }
+   if(m.type==='looperCancelFrom'){
+    event.stopImmediatePropagation();this.pending=this.pending.filter(p=>((p.data.messageData[0]&15)+(p.data.channelOffset||0))!==m.channel||(p.looperAt===undefined?p.data.options.time<m.time:p.looperAt<m.at));return;
+   }
+   if(m.type==='looperMidi'){
+    event.stopImmediatePropagation();const packet={type:'midiMessage',channelNumber:-1,looperAt:m.at,data:{messageData:m.data,channelOffset:0,options:{time:m.time}}};
+    if(m.time>currentTime){this.pending.push(packet);this.pending.sort((a,b)=>a.data.options.time-b.data.options.time);}else this.deliver(packet);return;
+   }
    if(m.type==='looperClearTrack'){
     event.stopImmediatePropagation();const queuedBefore=this.pending.length;
     this.pending=this.pending.filter(p=>((p.data.messageData[0]&15)+(p.data.channelOffset||0))!==m.channel);

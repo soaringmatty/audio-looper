@@ -42,6 +42,14 @@ Serve that output mounted at `/audio-looper/`; do not open `index.html` as a loc
 - Fixed bar counts survive clearing a single track. The field's × or confirmed global reset clears the preset.
 - The main-page six-tap timing check can calibrate laptop metronome clicks when using an external MIDI output. It does not accelerate live audio playback or move recorded notes. Measured compensation can be disabled/reset in settings.
 
+## MIDI performance and metronome output
+
+- Known recording ends, overdub cycles and queued unmute prepare their first playback ahead of the boundary without ending capture early. Spontaneous free recording stops cannot be predicted. Unchanged instruments are not reselected at every transition.
+- Settings > MIDI > Metronome output (German UI: Einstellungen > MIDI > Metronom-Ausgang): choose laptop or MIDI click. MIDI click uses reserved channel 11 with vibraphone, accented downbeats and the existing volume control. No visible track or click recording; CLP-625 receive mode must be ALL. This is not remote control of Yamaha's built-in metronome.
+- MIDI click bypasses laptop audio and its latency correction. The laptop calibration stays saved for switching back. Output choice persists without metronome autostart; device loss never silently falls back to laptop sound.
+- A queued recording's progress ring shows one bar when tempo is established, independently of the reference loop length.
+- Three focused synthetic tests: `node .yarn/releases/yarn-4.18.1.cjs exec ng test --watch=false --include=tests/midi-performance-start.test.ts`. Hardware sound/timing acceptance remains necessary; no broad regression test. Outputs without native MIDI queue cancellation still use release fallbacks rather than guaranteed physical cancellation.
+
 ## Third-party assets and licensing
 
 - SpessaSynth lib/core: Apache-2.0, license copies in `public/audio`. `scripts/prepare-audio.mjs` generates the processor with a marked MessagePort adapter for cancellable MIDI scheduling.

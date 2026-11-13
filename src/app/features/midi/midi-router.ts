@@ -59,6 +59,8 @@ export class MidiRouter implements MidiSink {
   private connecting?: Promise<void>;
   private scheduled: { track: number; data: number[]; at: number; port: Output }[] = [];
   private configuredChannels = DEFAULT_PROGRAMS.map((p, id) => outputChannel(id, p));
+  private configuredPrograms = new Map<string, string>();
+  private metronomeVoice = '';
   private profilePrograms = new Map<string, number[]>();
   private liveNotes = new Map<string, { track: number; data: number[]; count: number }>();
   private livePedals = new Map<string, { track: number; data: number[] }>();
@@ -628,13 +630,112 @@ export class MidiRouter implements MidiSink {
     this.configuredChannels[id] = channel;
     const voice = this.clavinova ? CLP625_VOICES.find((v) => v.id === t.program) : undefined;
     for (const ch of new Set([channel, this.liveChannel(id)])) {
-      if (this.outputId !== 'browser') {
-        this.deliver(id, [0xb0, 0, voice?.msb ?? 0], at, ch);
-        this.deliver(id, [0xb0, 32, voice?.lsb ?? 0], at, ch);
+      const key = `${this.outputId}:${ch}`;
+      const program = `${this.outputProfile}:${t.program}`;
+      if (this.configuredPrograms.get(key) !== program) {
+        if (this.outputId !== 'browser') {
+          this.deliver(id, [0xb0, 0, voice?.msb ?? 0], at, ch);
+          this.deliver(id, [0xb0, 32, voice?.lsb ?? 0], at, ch);
+        }
+        this.deliver(id, [0xc0, voice?.program ?? t.program], at, ch);
+        this.configuredPrograms.set(key, program);
       }
-      this.deliver(id, [0xc0, voice?.program ?? t.program], at, ch);
       this.deliver(id, [0xb0, 7, t.muted ? 0 : t.volume], at, ch);
     }
+  }
+  resumeTrack(id: number, at: number, includeLive = false): void {
+    for (const ch of new Set(
+      includeLive ? [this.channel(id), this.liveChannel(id)] : [this.channel(id)],
+    ))
+      this.deliver(id, [0xb0, 7, this.engine.tracks[id].volume], at, ch);
+  }
+  cancelScheduled(id: number, from: number, now: number): void {
+    if (this.outputId === 'browser') {
+      this.browser.cancelScheduled(id, from);
+      return;
+    }
+    if (!this.output) return;
+    const channel = this.channel(id);
+    this.advanceExternal(now);
+    const removed = this.scheduled.filter((e) => (e.data[0] & 15) === channel && e.at >= from);
+    const keep = this.scheduled.filter((e) => !removed.includes(e));
+    if (!removed.length) return;
+    if (typeof this.output.clear === 'function') {
+      try {
+        this.output.clear();
+        for (const e of keep) this.externalSend(this.output, e.data, e.at, 'restore-preview-queue');
+        // An asynchronous clear may also discard already-due releases.
+        for (const note of this.externalNotes.values())
+          if (!note.active)
+            this.externalSend(
+              this.output,
+              [0x80 | note.channel, note.note, 0],
+              now,
+              'preview-release',
+            );
+        for (const pedal of this.externalPedals.values())
+          if (!pedal.value)
+            this.externalSend(
+              this.output,
+              [0xb0 | pedal.channel, pedal.cc, 0],
+              now,
+              'preview-pedal',
+            );
+      } catch {
+        this.message = 'MIDI-Vorausplanung konnte nicht aktualisiert werden.';
+        return;
+      }
+    } else {
+      // No native clear: neutralize superseded attacks before their replacements.
+      for (const e of removed)
+        if ((e.data[0] & 0xf0) === 0x90 && e.data[2])
+          this.externalSend(
+            this.output,
+            [0x80 | channel, e.data[1], 0],
+            e.at,
+            'preview-cancel-fallback',
+          );
+        else if (
+          (e.data[0] & 0xf0) === 0xb0 &&
+          (PEDAL_CONTROLLERS.includes(e.data[1]) || e.data[1] === 7)
+        )
+          this.externalSend(
+            this.output,
+            [
+              0xb0 | channel,
+              e.data[1],
+              e.data[1] === 7 && !this.engine.tracks[id].muted ? this.engine.tracks[id].volume : 0,
+            ],
+            e.at,
+            'preview-cancel-controller',
+          );
+    }
+    this.scheduled = keep;
+  }
+  sendMetronome(accent: boolean, at: number, volume: number): void {
+    if (!this.output || this.outputId === 'browser' || this.output.state !== 'connected') return;
+    // Channel 11 is reserved: tracks use 1–5, live voices 6–10. Never capture clicks.
+    const channel = 10,
+      id = 5;
+    const voice = `${this.outputId}:${this.outputProfile}`;
+    if (this.metronomeVoice !== voice) {
+      const configureAt = performance.now();
+      this.deliver(id, [0xb0, 0, this.clavinova ? 108 : 0], configureAt, channel);
+      this.deliver(id, [0xb0, 32, 0], configureAt, channel);
+      this.deliver(id, [0xc0, 11], configureAt, channel); // Vibraphone, supported by CLP-625 and GM.
+      for (const cc of [64, 66, 67, 91]) this.deliver(id, [0xb0, cc, 0], configureAt, channel);
+      this.metronomeVoice = voice;
+    }
+    if (volume <= 0) return;
+    this.deliver(id, [0xb0, 7, Math.round(Math.max(0, Math.min(1, volume)) * 127)], at, channel);
+    const note = accent ? 96 : 84;
+    this.deliver(id, [0x90, note, accent ? 105 : 78], at, channel);
+    this.deliver(id, [0x80, note, 0], at + 35, channel);
+  }
+  stopMetronome(at = performance.now()): void {
+    if (this.metronomeVoice && this.outputId !== 'browser' && this.output)
+      this.clearExternalTrack(5, 10, at);
+    this.metronomeVoice = '';
   }
   private clearExternalTrack(id: number, channel: number, at: number, includeLive = false): void {
     if (!this.output) return;
@@ -747,6 +848,8 @@ export class MidiRouter implements MidiSink {
     this.trace.checkpoint('track-delete');
   }
   reset(at: number): void {
+    this.stopMetronome(at);
+    this.configuredPrograms.clear();
     try {
       this.cancelExternalQueue(
         new Set(Array.from({ length: 16 }, (_, ch) => ch)),

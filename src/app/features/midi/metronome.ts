@@ -11,8 +11,12 @@ export class Metronome {
   denominator = 4;
   established = false;
   compensateOutput = false;
+  outputMode: 'laptop' | 'midi' = 'laptop';
+  onMidiBeat: (accent: boolean, at: number, volume: number) => void = () => {};
+  onMidiStop: () => void = () => {};
   private advanceOverrideMs?: number;
   get advanceMs(): number {
+    if (this.outputMode === 'midi') return 0;
     if (this.compensateOutput && this.advanceOverrideMs !== undefined)
       return this.advanceOverrideMs;
     const estimate = this.compensateOutput ? outputDelayMs(this.context) : 0;
@@ -27,21 +31,41 @@ export class Metronome {
     // Subsequent clicks use the new advance, without rewinding the musical origin.
   }
   private voices = new Set<OscillatorNode>();
+  setOutput(mode: 'laptop' | 'midi', now: number): void {
+    if (mode === this.outputMode) return;
+    this.stopVoices();
+    this.onMidiStop();
+    this.outputMode = mode;
+    this.cursor = now;
+    this.setVolume();
+  }
+  private stopVoices(): void {
+    for (const osc of this.voices) {
+      try {
+        osc.stop();
+      } catch {}
+    }
+    this.voices.clear();
+  }
   constructor(private readonly sharedContext?: () => AudioContext | undefined) {}
   async toggle(now: number, origin: number, restart = false): Promise<void> {
     const requested = performance.now();
-    if (!this.context) {
+    if (this.outputMode === 'laptop' && !this.context) {
       this.context = this.sharedContext?.() ?? new AudioContext({ latencyHint: 'interactive' });
       this.gain = this.context.createGain();
       this.gain.connect(this.context.destination);
     }
-    await this.context.resume();
+    if (this.outputMode === 'laptop') await this.context!.resume();
     this.enabled = !this.enabled;
     if (this.enabled && restart) {
-      const start = now + Math.max(0, performance.now() - requested) + this.advanceMs;
+      const start =
+        now +
+        Math.max(0, performance.now() - requested) +
+        (this.outputMode === 'midi' ? 30 : this.advanceMs);
       this.align(start, start);
       this.cursor = start + 0.01;
-      this.emitBeat(0, this.context.currentTime);
+      if (this.outputMode === 'midi') this.onMidiBeat(true, start, this.volume);
+      else this.emitBeat(0, this.context!.currentTime);
     } else {
       if (!this.established) {
         this.origin = origin;
@@ -49,19 +73,22 @@ export class Metronome {
       }
       this.cursor = now;
     }
+    if (!this.enabled) {
+      this.stopVoices();
+      this.onMidiStop();
+    }
     this.setVolume();
   }
   setVolume(): void {
     if (this.context && this.gain)
-      this.gain.gain.setValueAtTime(this.enabled ? this.volume : 0, this.context.currentTime);
+      this.gain.gain.setValueAtTime(
+        this.enabled && this.outputMode === 'laptop' ? this.volume : 0,
+        this.context.currentTime,
+      );
   }
   align(origin: number, now: number): void {
-    for (const osc of this.voices) {
-      try {
-        osc.stop();
-      } catch {}
-    }
-    this.voices.clear();
+    this.stopVoices();
+    this.onMidiStop();
     this.origin = origin;
     this.established = true;
     this.cursor = now;
@@ -84,7 +111,7 @@ export class Metronome {
     };
   }
   tick(now: number): void {
-    if (!this.enabled || !this.context || !this.gain) return;
+    if (!this.enabled || (this.outputMode === 'laptop' && (!this.context || !this.gain))) return;
     const beat = ((60000 / this.bpm) * 4) / this.denominator;
     const renderFor = now + this.advanceMs;
     const from = Math.max(this.cursor, renderFor);
@@ -93,8 +120,13 @@ export class Metronome {
       this.origin + n * beat < renderFor + 50;
       n++
     ) {
-      const at = this.context.currentTime + Math.max(0, this.origin + n * beat - renderFor) / 1000;
-      this.emitBeat(n, at);
+      if (this.outputMode === 'midi')
+        this.onMidiBeat(n % this.beats === 0, this.origin + n * beat, this.volume);
+      else {
+        const at =
+          this.context!.currentTime + Math.max(0, this.origin + n * beat - renderFor) / 1000;
+        this.emitBeat(n, at);
+      }
     }
     this.cursor = Math.max(this.cursor, renderFor + 50);
   }

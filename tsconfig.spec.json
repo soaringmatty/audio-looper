@@ -3,6 +3,10 @@
   "compilerOptions": {
     "types": ["vitest/globals", "node"]
   },
-  "include": ["src/tests/angular-refactor.test.ts", "src/app/**/*.ts"],
+  "include": [
+    "src/tests/angular-refactor.test.ts",
+    "src/tests/midi-performance-start.test.ts",
+    "src/app/**/*.ts"
+  ],
   "exclude": []
 }

@@ -47,6 +47,7 @@
       />
       <select
         id="measured-metronome"
+        [disabled]="vm.metro.outputMode === 'midi'"
         [ngModel]="vm.useMeasuredMetronome"
         (ngModelChange)="vm.setMeasuredMetronome($event); workspace.refresh()"
       >
@@ -57,11 +58,13 @@
     <p class="settings-note">
       Klick-Vorlauf: {{ vm.metro.advanceMs | number: '1.0-1' }} ms ·
       {{
-        vm.midi.outputId === 'browser'
-          ? 'Bei Browser-Ausgang keine zusätzliche Klickkorrektur.'
-          : vm.useMeasuredMetronome && vm.timing.calibration
-            ? 'Gemessen, aktiv.'
-            : 'Browser-Schätzung aktiv.'
+        vm.metro.outputMode === 'midi'
+          ? 'MIDI-Klick: Laptop-Korrektur nicht angewendet; gespeicherter Laptop-Wert bleibt erhalten.'
+          : vm.midi.outputId === 'browser'
+            ? 'Bei Browser-Ausgang keine zusätzliche Klickkorrektur.'
+            : vm.useMeasuredMetronome && vm.timing.calibration
+              ? 'Gemessen, aktiv.'
+              : 'Browser-Schätzung aktiv.'
       }}
       @if (vm.timing.calibration) {
         Gespeichert: {{ vm.timing.calibration.advanceMs | number: '1.0-1' }} ms.
@@ -158,6 +161,23 @@
     </p>
   }
   @if (vm.settingsTab === 'midi') {
+    <div class="setting-row">
+      <label for="metronome-output-midi">Metronom-Ausgang</label>
+      <info-hint
+        label="Info zum MIDI-Klick"
+        text="Laptop-Klick oder MIDI-Klick am gewählten MIDI-Ausgang. MIDI nutzt einen eigenen unsichtbaren Kanal 11 mit Vibraphon; Empfang am Klavier auf ALL. Kein eingebautes Yamaha-Metronom und keine Laptop-Kalibrierung. Die Ausgabe wird gespeichert, das Metronom startet beim Laden nicht automatisch."
+      />
+      <select
+        id="metronome-output-midi"
+        [ngModel]="vm.metro.outputMode"
+        (ngModelChange)="vm.setMetronomeOutput($event); workspace.refresh()"
+      >
+        <option value="laptop">Laptop-Klick</option>
+        <option value="midi" [disabled]="vm.midi.outputId === 'browser' || !vm.midi.outputReady">
+          MIDI-Klick
+        </option>
+      </select>
+    </div>
     <div class="midi-setting">
       <label class="check"
         ><input
@@ -258,7 +278,7 @@
             : (vm.midi.browser.diagnostics().estimatedTotalMs | number: '1.1-1') + ' ms geschätzt'
         }}. Fortschrittsringe berücksichtigen die Audio-Ausgabezeit. MIDI-Synth und Metronom teilen
         dieselbe Audio-Clock. Bei externem MIDI-Ausgang wird der Laptop-Klick anhand des Messwerts
-        oder Browser-Schätzwerts früher geplant (aktuell
+        oder Browser-Schätzwerts früher geplant. Beim MIDI-Klick bleibt dieser Vorlauf aus (aktuell
         {{ vm.metro.advanceMs | number: '1.1-1' }} ms Vorlauf). Das verkürzt keine physische
         Live-Ausgabelatenz. Bei deutlich verzögertem Laptop-Klang einen anderen kabelgebundenen
         Audioausgang und deaktivierte Klangverbesserungen vergleichen.
@@ -314,6 +334,12 @@
     </ul>
     <h3>Klavier & MIDI</h3>
     <ul>
+      <li>
+        Metronom-Ausgang unter Einstellungen → MIDI: Laptop-Klick oder MIDI-Klick über den gewählten
+        Ausgang. MIDI-Klick nutzt einen reservierten Kanal 11 mit Vibraphon und betontem Taktanfang,
+        keine sichtbare Loop-Spur. Laptop-Kalibrierung wird dabei nicht angewendet; Empfang am
+        Klavier auf ALL.
+      </li>
       <li>
         Gerätezugriff wird beim Öffnen angefragt; Browser-Piano funktioniert auch ohne Freigabe.
       </li>

@@ -181,6 +181,9 @@ export class MidiWorkspace implements OnDestroy {
       [this.engine.beats, this.engine.denominator] = this.signature.split('/').map(Number);
     }
     if (preferences.metroVolume !== undefined) this.metro.volume = preferences.metroVolume;
+    if (preferences.metronomeOutput) this.metro.outputMode = preferences.metronomeOutput;
+    this.metro.onMidiBeat = (accent, at, volume) => this.midi.sendMetronome(accent, at, volume);
+    this.metro.onMidiStop = () => this.midi.stopMetronome();
     if (preferences.useMeasuredMetronome !== undefined)
       this.useMeasuredMetronome = preferences.useMeasuredMetronome;
     if (preferences.unmuteMode) this.engine.unmuteMode = preferences.unmuteMode;
@@ -191,7 +194,17 @@ export class MidiWorkspace implements OnDestroy {
     this.syncMetro();
     this.midi.engine = this.engine;
     this.midi.onChange = () => {
-      this.timing.setRoute(`${this.midi.inputId}|${this.midi.outputId}`);
+      if (
+        this.metro.outputMode === 'midi' &&
+        this.metro.enabled &&
+        (this.midi.outputId === 'browser' || !this.midi.outputReady)
+      ) {
+        this.metro.enabled = false;
+        this.metro.onMidiStop();
+        this.warning =
+          'MIDI-Klick beendet: Kein verbundener MIDI-Ausgang. Bei Bedarf auf Laptop-Klick umstellen.';
+      }
+      this.timing.setRoute(this.timingRoute());
       this.syncMetronomeAdvance();
       if (this.lastInputId !== this.midi.inputId) {
         this.lastInputId = this.midi.inputId;
@@ -213,7 +226,7 @@ export class MidiWorkspace implements OnDestroy {
       this.refresh();
     };
     this.midi.onNoteInput = (at) => {
-      this.timing.setRoute(`${this.midi.inputId}|${this.midi.outputId}`);
+      this.timing.setRoute(this.timingRoute());
       if (!this.metro.enabled || this.engine.busy) this.timing.cancel();
       if (this.timing.input(at)) this.syncMetronomeAdvance();
       this.refresh();
@@ -292,13 +305,15 @@ export class MidiWorkspace implements OnDestroy {
     }
     if (!this.metro.enabled) await this.toggleMetro();
     if (!this.metro.enabled) return;
-    this.timing.setRoute(`${this.midi.inputId}|${this.midi.outputId}`);
+    this.timing.setRoute(this.timingRoute());
     this.syncMetronomeAdvance();
     this.timing.start(
       this.metro.origin,
       ((60000 / this.metro.bpm) * 4) / this.metro.denominator,
       this.now(),
-      this.metro.compensateOutput ? 0 : (outputDelayMs(this.metro.context) ?? 0),
+      this.metro.outputMode === 'midi' || this.metro.compensateOutput
+        ? 0
+        : (outputDelayMs(this.metro.context) ?? 0),
       this.metro.compensateOutput ? this.metro.advanceMs : undefined,
     );
     this.closeSettings();
@@ -308,7 +323,8 @@ export class MidiWorkspace implements OnDestroy {
     return performance.now();
   }
   syncMetronomeAdvance(): void {
-    this.metro.compensateOutput = this.midi.outputId !== 'browser';
+    this.metro.compensateOutput =
+      this.metro.outputMode === 'laptop' && this.midi.outputId !== 'browser';
     this.metro.setAdvanceOverride(
       this.timing.activeAdvanceMs ??
         (this.useMeasuredMetronome ? this.timing.calibration?.advanceMs : undefined),
@@ -319,6 +335,17 @@ export class MidiWorkspace implements OnDestroy {
     this.useMeasuredMetronome = enabled;
     this.syncMetronomeAdvance();
     this.savePreferences();
+  }
+  setMetronomeOutput(mode: 'laptop' | 'midi'): void {
+    if (mode !== 'laptop' && mode !== 'midi') return;
+    this.timing.cancel('Messung bei Metronom-Ausgangswechsel abgebrochen.');
+    this.metro.setOutput(mode, this.now());
+    this.timing.setRoute(this.timingRoute());
+    this.syncMetronomeAdvance();
+    this.savePreferences();
+  }
+  private timingRoute(): string {
+    return `${this.midi.inputId}|${this.midi.outputId}${this.metro.outputMode === 'midi' ? '|click:midi' : ''}`;
   }
   resetMetronomeCalibration(): void {
     this.timing.resetCalibration();
@@ -583,6 +610,7 @@ export class MidiWorkspace implements OnDestroy {
       startToleranceMs: this.engine.startToleranceMs,
       unmuteMode: this.engine.unmuteMode,
       useMeasuredMetronome: this.useMeasuredMetronome,
+      metronomeOutput: this.metro.outputMode,
     });
   }
   setSignature(s: string): void {
@@ -596,8 +624,17 @@ export class MidiWorkspace implements OnDestroy {
     this.metro.denominator = this.engine.denominator;
   }
   async toggleMetro(): Promise<void> {
+    if (
+      !this.metro.enabled &&
+      this.metro.outputMode === 'midi' &&
+      (this.midi.outputId === 'browser' || !this.midi.outputReady)
+    ) {
+      this.warning =
+        'Für den MIDI-Klick einen verbundenen MIDI-Ausgang wählen oder auf Laptop-Klick umstellen.';
+      return;
+    }
     this.timing.cancel('Messung bei Metronomwechsel abgebrochen.');
-    this.activateAudio();
+    if (this.metro.outputMode === 'laptop') this.activateAudio();
     this.syncMetronomeAdvance();
     if (
       !this.metro.enabled &&
@@ -687,7 +724,7 @@ export class MidiWorkspace implements OnDestroy {
   openSettings(tab: 'settings' | 'midi' | 'tempo' | 'help' = 'settings'): void {
     this.release();
     this.settingsTab = tab;
-    this.timing.setRoute(`${this.midi.inputId}|${this.midi.outputId}`);
+    this.timing.setRoute(this.timingRoute());
     this.returnFocus = document.activeElement as HTMLElement;
     this.settingsOpen = true;
     setTimeout(() => document.querySelector<HTMLButtonElement>('#close-settings')?.focus());
@@ -743,12 +780,8 @@ export class MidiWorkspace implements OnDestroy {
     );
     if (t.state === 'recording' && t.autoEnd !== undefined)
       return Math.max(0, Math.min(100, ((clock - t.start) / (t.autoEnd - t.start)) * 100));
-    if (t.state === 'armed' && this.engine.reference) {
-      return (
-        (((clock - (this.engine.origin ?? clock)) % this.engine.reference) /
-          this.engine.reference) *
-        100
-      );
+    if (t.state === 'armed' && this.engine.grid) {
+      return this.engine.phase(t, clock, true) * 100;
     }
     return this.engine.phase(t, clock, this.commonRing) * 100;
   }

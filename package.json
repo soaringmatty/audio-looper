@@ -15,7 +15,7 @@
     "format": "prettier --write \"src/**/*.{ts,html,css}\" \"public/audio/{pcm-engine,input-fx,tap-calibration,pcm-processor}.{js,ts}\" \"public/audio/*.d.ts\" angular.json tsconfig*.json package.json",
     "format:check": "prettier --check \"src/**/*.{ts,html,css}\" \"public/audio/{pcm-engine,input-fx,tap-calibration,pcm-processor}.{js,ts}\" \"public/audio/*.d.ts\" angular.json tsconfig*.json package.json",
     "test:refactor": "ng test --watch=false",
-    "test:unit": "vitest run --exclude \"**/angular-refactor.test.ts\""
+    "test:unit": "vitest run --exclude \"**/angular-refactor.test.ts\" --exclude \"**/midi-performance-start.test.ts\""
   },
   "engines": {
     "node": ">=24.15.0 <25"

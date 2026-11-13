@@ -44,6 +44,8 @@ export interface MidiSink {
   deleteTrack?(track: number, at: number): void;
   closeLiveTake?(track: number, at: number): void;
   beginTrack?(track: number, at: number): void;
+  cancelScheduled?(track: number, from: number, now: number): void;
+  resumeTrack?(track: number, at: number, includeLive?: boolean): void;
   closeReleaseTail?(
     track: number,
     notes: Record<string, number>,
@@ -87,6 +89,17 @@ export class LoopEngine {
   lastTick = 0;
   startToleranceMs = 50;
   unmuteMode: 'cycle' | 'immediate' = 'cycle';
+  // Output-only previews. Capture and visible state change at the real boundary.
+  private prepared = new Map<
+    number,
+    {
+      at: number;
+      cursor: number;
+      key: string;
+      loop: Pick<Track, 'events' | 'carry'>;
+      length: number;
+    }
+  >();
   private heldInput = Array.from(
     { length: 5 },
     () => new Map<string, { at: number; data: number[]; count: number }>(),
@@ -256,6 +269,7 @@ export class LoopEngine {
     return events.sort((a, b) => a.at - b.at);
   }
   private finish(t: Track, end: number, action: Action, now: number): void {
+    const prepared = this.prepared.get(t.id);
     t.length = end - t.start;
     t.layers = [this.closeTake(t, t.length, true)];
     Object.assign(t, compileLoop(t.layers));
@@ -270,7 +284,10 @@ export class LoopEngine {
     t.takeStart = end;
     t.cursor = now;
     // Late stop: retain absolute phase and chase notes/controllers at the current position.
-    this.invalidateTrack(t.id, now);
+    if (prepared?.at === end) {
+      t.cursor = prepared.cursor;
+      this.prepared.delete(t.id);
+    } else this.invalidateTrack(t.id, now);
   }
   input(data: number[], now: number, track = this.selected, eventAt = now): void {
     this.tick(now, now);
@@ -311,14 +328,22 @@ export class LoopEngine {
     }
     if (t.state === 'recording' || t.state === 'overdub')
       t.take.push({ at: Math.max(0, eventAt - t.takeStart), data: [...data] });
+    const prepared = this.prepared.get(t.id);
+    if (prepared && now < prepared.at) this.prepareBoundary(t, now, prepared.cursor);
   }
   tick(now: number, horizon = now + 30): void {
     this.lastTick = now;
     for (const t of this.tracks) {
       if (t.unmuteAt !== undefined && t.unmuteAt <= now + EPS) {
+        const at = t.unmuteAt;
         t.unmuteAt = undefined;
         t.muted = false;
-        this.invalidateTrack(t.id, now);
+        const prepared = this.prepared.get(t.id);
+        if (prepared?.at === at) {
+          t.cursor = prepared.cursor;
+          if (t.state !== 'overdub' || t.takeStart + t.length !== at) this.prepared.delete(t.id);
+          this.sink.resumeTrack?.(t.id, now, true);
+        } else this.invalidateTrack(t.id, now);
       }
       if (t.releaseTail && t.releaseTail.until <= now + EPS)
         this.finishReleaseTail(t, t.releaseTail.until, true);
@@ -343,9 +368,11 @@ export class LoopEngine {
           t.takeStart = end;
         }
       }
+      this.prepareBoundary(t, now, horizon);
       if (!t.length || !['playing', 'overdub'].includes(t.state)) continue;
       let until = horizon;
-      if (t.pending) until = Math.min(until, t.pending.at);
+      // Arming an overdub changes capture, not existing playback. Keep its
+      // already-known first notes inside the normal lookahead window.
       if (t.state === 'overdub') until = Math.min(until, t.takeStart + t.length);
       if (t.cursor < now - 250) t.cursor = now;
       if (!t.muted) {
@@ -365,6 +392,8 @@ export class LoopEngine {
     }
   }
   private commitOverdub(t: Track, end: number): void {
+    const prepared = this.prepared.get(t.id);
+    const previewed = prepared?.at === end;
     const rest = t.take.filter((e) => e.at >= t.length).map((e) => ({ ...e, at: e.at - t.length }));
     if (t.take.some((e) => e.at < t.length)) {
       const before = this.noteState(t, t.length);
@@ -372,7 +401,7 @@ export class LoopEngine {
       // Newly periodic notes were only heard on the LIVE channel this cycle.
       // Transfer them once; never reset/re-articulate unchanged loop voices.
       const after = this.noteState(t, 0);
-      if (!t.muted) {
+      if (!t.muted && !previewed) {
         for (const [key, data] of after.controls)
           if (JSON.stringify(before.controls.get(key)) !== JSON.stringify(data))
             this.sink.send(t.id, data, end);
@@ -386,6 +415,52 @@ export class LoopEngine {
     }
     t.take = rest;
     t.takeStart = end;
+    if (previewed) {
+      t.cursor = prepared.cursor;
+      this.prepared.delete(t.id);
+    }
+  }
+  private prepareBoundary(t: Track, now: number, horizon: number): void {
+    const end =
+      t.state === 'recording'
+        ? (t.autoEnd ?? t.pending?.at)
+        : (t.unmuteAt ?? (t.state === 'overdub' ? t.takeStart + t.length : undefined));
+    if (end === undefined || end <= now || end >= horizon || (t.muted && !t.unmuteAt)) return;
+    const length = t.state === 'recording' ? end - t.start : t.length;
+    if (!length) return;
+    const layers =
+      t.state === 'recording'
+        ? [this.closeTake(t, length, true)]
+        : t.state === 'overdub' && t.take.some((e) => e.at < length)
+          ? [...(t.layers ?? [t.events]), this.closeTake(t, length, true)]
+          : undefined;
+    const loop = layers ? compileLoop(layers) : { events: t.events, carry: t.carry };
+    const key = JSON.stringify([end, length, loop]);
+    let prepared = this.prepared.get(t.id);
+    if (prepared && prepared.key !== key) {
+      this.sink.cancelScheduled?.(t.id, prepared.at, now);
+      horizon = Math.max(horizon, prepared.cursor);
+      prepared = undefined;
+    }
+    if (!prepared) {
+      prepared = { at: end, cursor: end, key, loop, length };
+      this.prepared.set(t.id, prepared);
+      if (t.unmuteAt !== undefined) this.sink.resumeTrack?.(t.id, end);
+      const before = t.state === 'overdub' && !t.muted ? this.noteState(t, length) : undefined;
+      const after = this.noteState({ ...t, ...loop }, 0);
+      for (const [key, data] of after.controls)
+        if (JSON.stringify(before?.controls.get(key)) !== JSON.stringify(data))
+          this.sink.send(t.id, data, end);
+      for (const [note, data] of after.notes)
+        if (!before?.notes.has(note)) this.sink.send(t.id, data, end);
+    }
+    // Only the first post-boundary window; never predict another take boundary.
+    const until = Math.min(horizon, end + length);
+    for (const e of prepared.loop.events) {
+      const at = end + e.at;
+      if (at >= prepared.cursor && at < until) this.sink.send(t.id, e.data, at);
+    }
+    prepared.cursor = Math.max(prepared.cursor, until);
   }
   private addTake(t: Track, take: MidiEvent[]): void {
     t.layers ??= [t.events];
@@ -393,10 +468,12 @@ export class LoopEngine {
     Object.assign(t, compileLoop(t.layers));
   }
   invalidate(now: number): void {
+    this.prepared.clear();
     this.sink.reset(now);
     for (const t of this.tracks) this.chaseTrack(t, now);
   }
   invalidateTrack(id: number, now: number): void {
+    this.prepared.delete(id);
     this.resetTrack(id, now);
     this.chaseTrack(this.tracks[id], now);
   }
@@ -433,6 +510,10 @@ export class LoopEngine {
   mute(id: number, now: number): void {
     const t = this.tracks[id];
     if (t.unmuteAt !== undefined) {
+      if (this.prepared.delete(id)) {
+        this.sink.cancelScheduled?.(id, t.unmuteAt, now);
+        this.resetTrack(id, now);
+      }
       t.unmuteAt = undefined;
       return;
     }
@@ -447,6 +528,7 @@ export class LoopEngine {
     this.invalidateTrack(id, now);
   }
   clear(id: number, now: number): void {
+    this.prepared.delete(id);
     if (this.sink.deleteTrack) this.sink.deleteTrack(id, now);
     else this.resetTrack(id, now);
     this.heldInput[id].clear();

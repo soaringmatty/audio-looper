@@ -10,6 +10,7 @@ export interface WorkspacePreferences {
   startToleranceMs?: number;
   unmuteMode?: 'cycle' | 'immediate';
   useMeasuredMetronome?: boolean;
+  metronomeOutput?: 'laptop' | 'midi';
 }
 function normalize(value: unknown, mode: 'audio' | 'midi'): WorkspacePreferences {
   if (!value || typeof value !== 'object') return {};
@@ -32,6 +33,8 @@ function normalize(value: unknown, mode: 'audio' | 'midi'): WorkspacePreferences
   if (typeof source.commonRing === 'boolean') result.commonRing = source.commonRing;
   if (typeof source.useMeasuredMetronome === 'boolean')
     result.useMeasuredMetronome = source.useMeasuredMetronome;
+  if (mode === 'midi' && (source.metronomeOutput === 'laptop' || source.metronomeOutput === 'midi'))
+    result.metronomeOutput = source.metronomeOutput;
   if (source.unmuteMode === 'cycle' || source.unmuteMode === 'immediate')
     result.unmuteMode = source.unmuteMode;
   return result;

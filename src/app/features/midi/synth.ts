@@ -211,7 +211,8 @@ export class BrowserSynth {
     if (op === 0xb0 && data[1] === 10) c.pan = data[2];
     if (!c.loaded || !this.synth) return;
     const time = this.context!.currentTime + Math.max(0, at - performance.now()) / 1000;
-    this.synth.sendMessage(data, 0, { time });
+    // Preserve transport time for exact cancellation across audio-clock quanta.
+    this.port?.postMessage({ type: 'looperMidi', data: [...data], at, time });
   }
   clear(): void {
     this.port?.postMessage({ type: 'looperClear' });
@@ -219,6 +220,11 @@ export class BrowserSynth {
   clearTrack(id: number): void {
     this.onTrace('worklet-clear-request', { channel: id });
     this.port?.postMessage({ type: 'looperClearTrack', channel: id });
+  }
+  cancelScheduled(id: number, from: number): void {
+    if (!this.context) return;
+    const time = this.context.currentTime + Math.max(0, from - performance.now()) / 1000;
+    this.port?.postMessage({ type: 'looperCancelFrom', channel: id, at: from, time });
   }
   async dispose(): Promise<void> {
     this.disposed = true;
