@@ -122,6 +122,43 @@ export class LoopEngine {
   get busy(): boolean {
     return this.tracks.some((t) => t.state !== 'empty');
   }
+  get tempoLocked(): boolean {
+    return (
+      (this.busy && this.mode !== 'tempo') ||
+      this.tracks.some(
+        (t) =>
+          ['armed', 'recording', 'overdub'].includes(t.state) ||
+          !!t.pending ||
+          !!t.releaseTail ||
+          t.unmuteAt !== undefined,
+      )
+    );
+  }
+  setTempo(bpm: number, now: number, earliest = now): number | undefined {
+    if (!Number.isFinite(bpm) || bpm < 30 || bpm > 300 || this.tempoLocked) return;
+    // The old timestamp queue is immutable on some MIDI devices. Fill every
+    // track to one shared changeover beyond that queue, then schedule only the
+    // new tempo from there. Active voices and pedal state stay untouched.
+    const at = Math.max(now, earliest, ...this.tracks.map((t) => t.cursor));
+    const ratio = this.bpm / bpm;
+    this.tick(now, at);
+    if (this.origin !== null) this.origin = at + (this.origin - at) * ratio;
+    this.reference *= ratio;
+    const scale = (events: MidiEvent[]) => events.map((e) => ({ ...e, at: e.at * ratio }));
+    for (const t of this.tracks) {
+      if (!t.length) continue;
+      t.start = at + (t.start - at) * ratio;
+      t.takeStart = at + (t.takeStart - at) * ratio;
+      t.length *= ratio;
+      t.events = scale(t.events);
+      if (t.layers) t.layers = t.layers.map(scale);
+      if (t.barDuration !== undefined) t.barDuration *= ratio;
+      if (t.plannedLength !== undefined) t.plannedLength *= ratio;
+      t.cursor = at;
+    }
+    this.bpm = bpm;
+    return at;
+  }
   press(id: number, now: number): void {
     this.tick(now, now);
     const t = this.tracks[id];

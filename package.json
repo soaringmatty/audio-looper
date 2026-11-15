@@ -1,21 +1,22 @@
 {
   "name": "audio-looper",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "packageManager": "yarn@4.18.1",
   "scripts": {
     "start": "ng serve --host localhost",
     "build": "node scripts/prepare-audio.mjs && ng build",
-    "build:pages": "node scripts/prepare-audio.mjs && ng build --configuration production --base-href /audio-looper/",
-    "soundbanks": "node scripts/fetch-soundbanks.mjs",
-    "release:check": "node scripts/check-release.mjs",
     "test": "yarn test:unit && yarn test:refactor",
     "audio:assets": "node scripts/prepare-audio.mjs",
     "format": "prettier --write \"src/**/*.{ts,html,css}\" \"public/audio/{pcm-engine,input-fx,tap-calibration,pcm-processor}.{js,ts}\" \"public/audio/*.d.ts\" angular.json tsconfig*.json package.json",
     "format:check": "prettier --check \"src/**/*.{ts,html,css}\" \"public/audio/{pcm-engine,input-fx,tap-calibration,pcm-processor}.{js,ts}\" \"public/audio/*.d.ts\" angular.json tsconfig*.json package.json",
     "test:refactor": "ng test --watch=false",
-    "test:unit": "vitest run --exclude \"**/angular-refactor.test.ts\" --exclude \"**/midi-performance-start.test.ts\""
+    "test:unit": "vitest run --exclude \"**/angular-refactor.test.ts\" --exclude \"**/midi-performance-start.test.ts\" --exclude \"**/live-performance.test.ts\"",
+    "test:performance": "ng test --watch=false --include=tests/live-performance.test.ts",
+    "build:pages": "node scripts/prepare-audio.mjs && ng build --configuration production --base-href /audio-looper/",
+    "soundbanks": "node scripts/fetch-soundbanks.mjs",
+    "release:check": "node scripts/check-release.mjs"
   },
   "engines": {
     "node": ">=24.15.0 <25"

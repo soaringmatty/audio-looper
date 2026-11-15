@@ -6,6 +6,7 @@
   "include": [
     "src/tests/angular-refactor.test.ts",
     "src/tests/midi-performance-start.test.ts",
+    "src/tests/live-performance.test.ts",
     "src/app/**/*.ts"
   ],
   "exclude": []

@@ -37,6 +37,7 @@ export class AudioWorkspace implements OnDestroy {
 
   audio = new AudioSession();
   settingsOpen = false;
+  resetOpen = false;
   settingsTab = 'audio';
   working = false;
   calibrationOpen = false;
@@ -231,12 +232,19 @@ export class AudioWorkspace implements OnDestroy {
     }
     this.refresh();
   }
-  async resetAllTracks(): Promise<void> {
-    if (!window.confirm('Alle Aufnahmen und Taktvorgaben löschen?')) return;
+  resetAllTracks(): void {
+    this.resetOpen = true;
+    this.refresh();
+  }
+  async confirmResetAllTracks(): Promise<void> {
+    if (!this.resetOpen) return;
+    this.resetOpen = false;
     this.audio.error = '';
     try {
       for (const t of this.s.tracks) {
         if (t.state !== 'empty') await this.audio.send({ type: 'clear', id: t.id });
+        if (this.audio.node) await this.audio.send({ type: 'volume', id: t.id, value: 0.8 });
+        t.volume = 0.8;
       }
       this.recordBars.fill(null);
       saveRecordBars('audio', this.recordBars);
@@ -492,12 +500,14 @@ export class AudioWorkspace implements OnDestroy {
       !this.pedalDown &&
       !this.settingsOpen &&
       !this.calibrationOpen &&
-      !this.fxDetailsOpen
+      !this.fxDetailsOpen &&
+      !this.resetOpen
     )
       void this.trigger(this.selected);
     this.pedalDown = down;
   };
   key = (e: KeyboardEvent): void => {
+    if (this.resetOpen) return;
     if (
       e.key === 'Escape' &&
       this.tempoOpen &&
@@ -547,6 +557,7 @@ export class AudioWorkspace implements OnDestroy {
     if (action.kind === 'select') this.select(action.id);
     else if (action.kind === 'main') void this.trigger(this.selected);
     else if (action.kind === 'metro') void this.toggleMetro();
+    else if (action.kind === 'muteTrack') void this.command('mute', action.id);
     else if (action.kind === 'mute') void this.command('mute', this.selected);
     else void this.command('clear', this.selected);
   };

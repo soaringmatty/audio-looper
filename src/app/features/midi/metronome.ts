@@ -79,6 +79,12 @@ export class Metronome {
     }
     this.setVolume();
   }
+  setTempo(bpm: number, at: number): void {
+    const ratio = this.bpm / bpm;
+    if (this.established) this.origin = at + (this.origin - at) * ratio;
+    this.bpm = bpm;
+    this.cursor = at;
+  }
   setVolume(): void {
     if (this.context && this.gain)
       this.gain.gain.setValueAtTime(
@@ -110,14 +116,14 @@ export class Metronome {
       envelope.disconnect();
     };
   }
-  tick(now: number): void {
+  tick(now: number, horizon = now + this.advanceMs + 50): void {
     if (!this.enabled || (this.outputMode === 'laptop' && (!this.context || !this.gain))) return;
     const beat = ((60000 / this.bpm) * 4) / this.denominator;
     const renderFor = now + this.advanceMs;
     const from = Math.max(this.cursor, renderFor);
     for (
       let n = Math.max(0, Math.ceil((from - this.origin) / beat));
-      this.origin + n * beat < renderFor + 50;
+      this.origin + n * beat < horizon;
       n++
     ) {
       if (this.outputMode === 'midi')
@@ -128,6 +134,6 @@ export class Metronome {
         this.emitBeat(n, at);
       }
     }
-    this.cursor = Math.max(this.cursor, renderFor + 50);
+    this.cursor = Math.max(this.cursor, horizon);
   }
 }

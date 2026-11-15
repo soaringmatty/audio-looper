@@ -207,10 +207,12 @@ it('routes an isolated accented MIDI click with zero laptop correction, preserve
   const laptopCalibration = localStorage.getItem('midi-metronome-calibration-v1:clp|clp');
   const oscillator = vi.fn();
   vm.metro.context = { currentTime: 1, createOscillator: oscillator } as unknown as AudioContext;
-  vm.openSettings('midi');
+  vm.closeSettings();
   vm.refresh();
   await fixture.whenStable();
-  const select: HTMLSelectElement = fixture.nativeElement.querySelector('#metronome-output-midi');
+  const select: HTMLSelectElement = fixture.nativeElement.querySelector(
+    '.metronome-controls #metronome-output-midi',
+  );
   select.value = 'midi';
   select.dispatchEvent(new Event('change', { bubbles: true }));
   await fixture.whenStable();

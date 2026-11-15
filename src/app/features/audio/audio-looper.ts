@@ -1,3 +1,4 @@
+import { ResetConfirmation } from '../../shared/ui/reset-confirmation';
 import { PerformanceFocus } from '../../shared/ui/performance-focus';
 import { WorkspaceHeader } from '../../shared/ui/workspace-header';
 import { Component, inject } from '@angular/core';
@@ -12,6 +13,7 @@ import { AudioSettings } from './audio-settings';
 @Component({
   selector: 'app-audio-looper',
   imports: [
+    ResetConfirmation,
     PerformanceFocus,
     WorkspaceHeader,
 

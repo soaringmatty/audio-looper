@@ -1,5 +1,5 @@
 export type Shortcut =
-  | { kind: 'select'; id: number }
+  | { kind: 'select' | 'muteTrack'; id: number }
   | { kind: 'main' | 'metro' | 'mute' | 'clear' };
 export function shortcut(
   event: Pick<KeyboardEvent, 'key' | 'code' | 'repeat' | 'ctrlKey' | 'altKey' | 'metaKey'> & {
@@ -10,6 +10,8 @@ export function shortcut(
 ): Shortcut | null {
   if (editing || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return null;
   if (event.code === 'KeyM' && event.shiftKey) return { kind: 'mute' };
+  if (event.shiftKey && /^(?:Digit|Numpad)[1-5]$/.test(event.code))
+    return { kind: 'muteTrack', id: +event.code.slice(-1) - 1 };
   if (/^[1-5]$/.test(event.key)) return { kind: 'select', id: +event.key - 1 };
   if ((event.code === 'Space' || event.code === 'Enter' || event.code === 'NumpadEnter') && !button)
     return { kind: 'main' };

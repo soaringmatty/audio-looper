@@ -63,6 +63,7 @@ export class MidiWorkspace implements OnDestroy {
   pianoVisible = true;
   private lastInputId = 'piano';
   settingsOpen = false;
+  resetOpen = false;
   commonRing = false;
   signature = '4/4';
   settingsTab: 'settings' | 'midi' | 'tempo' | 'help' | 'diagnostics' = 'settings';
@@ -163,8 +164,31 @@ export class MidiWorkspace implements OnDestroy {
   get displayBpm(): number {
     return Math.round(this.engine.bpm * 100) / 100;
   }
-  set displayBpm(value: number) {
-    this.engine.bpm = value;
+  changeTempo(value: number | string): void {
+    const bpm = Number(value);
+    const previousBpm = this.engine.bpm;
+    const now = this.now();
+    // Finish the old lookahead once, including an early laptop click. No MIDI
+    // queue clear or re-articulation of held notes is needed at the changeover.
+    const pivot = Math.max(
+      now,
+      this.metro.enabled ? this.metro.cursor : now,
+      ...this.engine.tracks.map((t) => t.cursor),
+    );
+    const appliedAt = this.engine.setTempo(bpm, now, pivot);
+    if (appliedAt === undefined) {
+      this.refresh();
+      return;
+    }
+    this.metro.tick(now, appliedAt);
+    this.timing.cancel('Messung bei Tempoänderung abgebrochen.');
+    this.metro.setTempo(bpm, appliedAt);
+    this.tempoCandidates = this.tempoCandidates.map((candidate) => ({
+      ...candidate,
+      bpm: (candidate.bpm * bpm) / previousBpm,
+    }));
+    this.savePreferences();
+    this.refresh();
   }
   get metroPercent(): number {
     return Math.round(this.metro.volume * 100);
@@ -213,7 +237,7 @@ export class MidiWorkspace implements OnDestroy {
       this.refresh();
     };
     this.midi.onLoopPedal = () => {
-      if (!this.settingsOpen) void this.trigger(this.engine.selected);
+      if (!this.settingsOpen && !this.resetOpen) void this.trigger(this.engine.selected);
     };
     this.midi.onInstrumentChange = (id, program) => this.program(this.engine.tracks[id], program);
     void this.midi.prepareAudio();
@@ -407,6 +431,7 @@ export class MidiWorkspace implements OnDestroy {
     }
   }
   key = (e: KeyboardEvent): void => {
+    if (this.resetOpen) return;
     const target = e.target as HTMLElement;
     if (e.key === 'Escape' && this.tempoOpen && !this.settingsOpen) {
       e.preventDefault();
@@ -459,6 +484,7 @@ export class MidiWorkspace implements OnDestroy {
     if (action.kind === 'select') this.select(action.id);
     else if (action.kind === 'main') this.trigger(this.engine.selected);
     else if (action.kind === 'metro') void this.toggleMetro();
+    else if (action.kind === 'muteTrack') this.mute(action.id);
     else if (action.kind === 'mute') this.mute(this.engine.selected);
     else this.clear(this.engine.selected);
   };
@@ -577,15 +603,21 @@ export class MidiWorkspace implements OnDestroy {
     }
   }
   resetAllTracks(): void {
-    if (!window.confirm('Alle Aufnahmen und Taktvorgaben löschen?')) return;
+    this.resetOpen = true;
+    this.refresh();
+  }
+  confirmResetAllTracks(): void {
+    if (!this.resetOpen) return;
+    this.resetOpen = false;
     for (const t of this.engine.tracks) {
       this.clear(t.id);
       this.setRecordBars(t, null);
+      this.resetVolume(t);
     }
     this.refresh();
   }
   mute(id: number): void {
-    this.release();
+    if (id === this.engine.selected) this.release();
     this.engine.mute(id, this.now());
   }
   unmuteHint(t: Track): string {

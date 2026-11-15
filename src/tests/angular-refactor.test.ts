@@ -757,15 +757,16 @@ it('Audio controls retain bars and FX on delete and clear bars only on confirmed
   await workspace.command('clear', 0);
   expect(send).toHaveBeenCalledExactlyOnceWith({ type: 'clear', id: 0 });
   expect(workspace.recordBars[0]).toBe(4);
-  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
   await workspace.resetAllTracks();
   expect(send).toHaveBeenCalledTimes(1);
-  confirm.mockReturnValue(true);
+  workspace.resetOpen = false;
   send.mockRejectedValueOnce(new Error('Test: Engine unavailable'));
   await workspace.resetAllTracks();
+  await workspace.confirmResetAllTracks();
   expect(workspace.recordBars[0]).toBe(4);
   expect(workspace.audio.error).toContain('Engine unavailable');
   await workspace.resetAllTracks();
+  await workspace.confirmResetAllTracks();
   expect(workspace.recordBars.every((bars) => bars === null)).toBe(true);
   expect(workspace.recordBars[0]).toBeNull();
   expect(JSON.parse(localStorage.getItem('audio-record-bars-v1')!)[0]).toBeNull();

@@ -77,7 +77,7 @@
       <label for="unmute-mode-midi">Entmuten</label>
       <info-hint
         label="Info zum Entmuten"
-        text="Stummschalten wirkt sofort. Entmuten am nächsten eigenen Loop-Anfang kann durch erneutes Drücken abgebrochen werden. Shift+M bedient die ausgewählte Spur."
+        text="Stummschalten wirkt sofort. Entmuten am nächsten eigenen Loop-Anfang kann durch erneutes Drücken abgebrochen werden. Shift+1–5 bedient den jeweiligen Track ohne Spurwechsel; Shift+M die ausgewählte Spur."
       />
       <select
         id="unmute-mode-midi"
@@ -161,23 +161,6 @@
     </p>
   }
   @if (vm.settingsTab === 'midi') {
-    <div class="setting-row">
-      <label for="metronome-output-midi">Metronom-Ausgang</label>
-      <info-hint
-        label="Info zum MIDI-Klick"
-        text="Laptop-Klick oder MIDI-Klick am gewählten MIDI-Ausgang. MIDI nutzt einen eigenen unsichtbaren Kanal 11 mit Vibraphon; Empfang am Klavier auf ALL. Kein eingebautes Yamaha-Metronom und keine Laptop-Kalibrierung. Die Ausgabe wird gespeichert, das Metronom startet beim Laden nicht automatisch."
-      />
-      <select
-        id="metronome-output-midi"
-        [ngModel]="vm.metro.outputMode"
-        (ngModelChange)="vm.setMetronomeOutput($event); workspace.refresh()"
-      >
-        <option value="laptop">Laptop-Klick</option>
-        <option value="midi" [disabled]="vm.midi.outputId === 'browser' || !vm.midi.outputReady">
-          MIDI-Klick
-        </option>
-      </select>
-    </div>
     <div class="midi-setting">
       <label class="check"
         ><input

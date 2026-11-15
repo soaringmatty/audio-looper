@@ -1,3 +1,4 @@
+import { ResetConfirmation } from '../../shared/ui/reset-confirmation';
 import { PerformanceFocus } from '../../shared/ui/performance-focus';
 import { WorkspaceHeader } from '../../shared/ui/workspace-header';
 import { Component, inject } from '@angular/core';
@@ -10,6 +11,7 @@ import { MidiSettings } from './midi-settings';
 @Component({
   selector: 'app-midi-looper',
   imports: [
+    ResetConfirmation,
     PerformanceFocus,
     WorkspaceHeader,
     MidiConnections,

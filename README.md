@@ -34,10 +34,14 @@ node scripts/check-release.mjs
 
 Serve that output mounted at `/audio-looper/`; do not open `index.html` as a local file. For changes to runtime audio behavior, test the intended MIDI/audio device setup in addition to code tests. GitHub hosting does not eliminate local audio latency.
 
+## v0.13.0
+
+Non-blocking reset confirmation, global volume reset, direct track mute shortcuts, main-page metronome output and live MIDI BPM changes. See [CHANGELOG.md](CHANGELOG.md). Run the three focused checks with `node .yarn/releases/yarn-4.18.1.cjs test:performance`. Free loops require a confirmed tempo division; recording, overdub and pending transport actions lock BPM. Audio loops are not stretched. A tempo change takes effect after the already scheduled output window, including compensated speaker clicks.
+
 ## Controls
 
 - `1`–`5`: select track; `Space`/`Enter`: record/play/overdub action.
-- `Shift+M`: mute/unmute selected track; `Delete`: clear recording.
+- `Shift+1`–`Shift+5`: mute/unmute that track without selection changes; `Shift+M`: selected track; `Delete`: clear recording.
 - `T`: metronome; `+`/`−`: piano keyboard octave.
 - Fixed bar counts survive clearing a single track. The field's × or confirmed global reset clears the preset.
 - The main-page six-tap timing check can calibrate laptop metronome clicks when using an external MIDI output. It does not accelerate live audio playback or move recorded notes. Measured compensation can be disabled/reset in settings.
@@ -45,7 +49,7 @@ Serve that output mounted at `/audio-looper/`; do not open `index.html` as a loc
 ## MIDI performance and metronome output
 
 - Known recording ends, overdub cycles and queued unmute prepare their first playback ahead of the boundary without ending capture early. Spontaneous free recording stops cannot be predicted. Unchanged instruments are not reselected at every transition.
-- Settings > MIDI > Metronome output (German UI: Einstellungen > MIDI > Metronom-Ausgang): choose laptop or MIDI click. MIDI click uses reserved channel 11 with vibraphone, accented downbeats and the existing volume control. No visible track or click recording; CLP-625 receive mode must be ALL. This is not remote control of Yamaha's built-in metronome.
+- Choose speaker or MIDI click directly in the metronome controls. MIDI click uses reserved channel 11 with vibraphone, accented downbeats and the existing volume control. No visible track or click recording; CLP-625 receive mode must be ALL. This is not remote control of Yamaha's built-in metronome.
 - MIDI click bypasses laptop audio and its latency correction. The laptop calibration stays saved for switching back. Output choice persists without metronome autostart; device loss never silently falls back to laptop sound.
 - A queued recording's progress ring shows one bar when tempo is established, independently of the reference loop length.
 - Three focused synthetic tests: `node .yarn/releases/yarn-4.18.1.cjs exec ng test --watch=false --include=tests/midi-performance-start.test.ts`. Hardware sound/timing acceptance remains necessary; no broad regression test. Outputs without native MIDI queue cancellation still use release fallbacks rather than guaranteed physical cancellation.

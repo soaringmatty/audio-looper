@@ -47,7 +47,7 @@
   <footer>
     <div class="shortcuts">
       <span><kbd>1–5</kbd> Spur</span><span><kbd>Space / Enter</kbd> Aufnahme / Overdub</span
-      ><span><kbd>T</kbd> Metronom</span><span><kbd>Shift+M</kbd> Stumm</span
+      ><span><kbd>T</kbd> Metronom</span><span><kbd>Shift+1–5</kbd> Track stumm</span
       ><span><kbd>Entf</kbd> Löschen</span>
     </div>
     <button
@@ -92,4 +92,11 @@
     aria-labelledby="settings-title"
     app-midi-settings
   ></section>
+}
+
+@if (vm.resetOpen) {
+  <reset-confirmation
+    (confirmed)="vm.confirmResetAllTracks(); workspace.refresh()"
+    (cancelled)="vm.resetOpen = false; workspace.refresh()"
+  />
 }

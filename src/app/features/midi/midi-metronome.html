@@ -15,9 +15,9 @@
       type="number"
       min="30"
       max="300"
-      [disabled]="vm.engine.busy"
-      [(ngModel)]="vm.displayBpm"
-      (change)="vm.settings(); workspace.refresh()"
+      [disabled]="vm.engine.tempoLocked"
+      [ngModel]="vm.displayBpm"
+      (change)="vm.changeTempo($any($event.target).value); workspace.refresh()"
     />BPM</label
   >
   <select
@@ -32,6 +32,17 @@
     <option>6/8</option>
     <option>5/4</option>
   </select>
+  <select
+    id="metronome-output-midi"
+    aria-label="Metronom-Ausgang"
+    [ngModel]="vm.metro.outputMode"
+    (ngModelChange)="vm.setMetronomeOutput($event); workspace.refresh()"
+  >
+    <option value="laptop">Lautsprecher</option>
+    <option value="midi" [disabled]="vm.midi.outputId === 'browser' || !vm.midi.outputReady">
+      MIDI
+    </option>
+  </select>
   <label class="metro-level"
     >Lautstärke {{ vm.metroPercent }} %<input
       class="metro-volume"
@@ -45,15 +56,6 @@
   /></label>
 </div>
 <div class="tempo-slot">
-  @if (vm.metro.outputMode === 'midi' && !vm.engine.busy) {
-    <p class="settings-note">
-      MIDI-Klick über den gewählten Ausgang, Kanal 11. Kein Laptop-Klick und keine
-      Laptop-Kalibrierung.
-      @if (vm.midi.outputId === 'browser' || !vm.midi.outputReady) {
-        Bitte einen verbundenen MIDI-Ausgang wählen.
-      }
-    </p>
-  }
   @if (!vm.engine.busy && vm.metro.outputMode === 'laptop') {
     <div class="timing-check" aria-label="Timing-Check">
       @if (vm.timing.active) {
