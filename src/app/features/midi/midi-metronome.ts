@@ -8,6 +8,7 @@ import { DecimalPipe } from '@angular/common';
   selector: 'section[app-midi-metronome]',
   imports: [FormsModule, TempoSuggestion, DecimalPipe],
   templateUrl: './midi-metronome.html',
+  styleUrl: './midi-metronome.css',
 })
 export class MidiMetronome {
   readonly workspace = inject(MidiWorkspace);

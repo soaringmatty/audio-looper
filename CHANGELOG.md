@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.13.1 — 2026-11-16
+
+- Fix MIDI metronome spacing: keep the time signature visible, constrain output selector width and align control heights and spacing.
+- Keep the volume label on one line and separate the timing check from playback controls.
+- Use deliberate responsive rows on smaller screens instead of shrinking controls.
+- Layout checked at 1280, 960 and 390 px; local/public production builds. No audio, MIDI scheduling or transport behavior changed.
+
 ## v0.13.0 — 2026-11-15
 
 - Global reset now restores all track volumes; clearing a single track preserves its volume.

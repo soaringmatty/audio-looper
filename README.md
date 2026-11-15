@@ -34,6 +34,10 @@ node scripts/check-release.mjs
 
 Serve that output mounted at `/audio-looper/`; do not open `index.html` as a local file. For changes to runtime audio behavior, test the intended MIDI/audio device setup in addition to code tests. GitHub hosting does not eliminate local audio latency.
 
+## v0.13.1
+
+MIDI metronome layout fixes: visible time signature, compact output selector, aligned controls, single-line volume label and responsive timing-check separation. Layout checked at 1280, 960 and 390 px; no audio or scheduling changes. See [CHANGELOG.md](CHANGELOG.md).
+
 ## v0.13.0
 
 Non-blocking reset confirmation, global volume reset, direct track mute shortcuts, main-page metronome output and live MIDI BPM changes. See [CHANGELOG.md](CHANGELOG.md). Run the three focused checks with `node .yarn/releases/yarn-4.18.1.cjs test:performance`. Free loops require a confirmed tempo division; recording, overdub and pending transport actions lock BPM. Audio loops are not stretched. A tempo change takes effect after the already scheduled output window, including compensated speaker clicks.
