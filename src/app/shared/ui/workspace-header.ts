@@ -8,6 +8,7 @@ import { ModeSwitch } from './mode-switch';
       <h1>Audio Looper<span class="dot"></span></h1>
       <span class="eyebrow">{{ mode() === 'midi' ? 'MIDI' : 'AUDIO' }} LOOPSTATION</span>
     </div>
+    <ng-content />
     <nav aria-label="Ansicht">
       <mode-switch [mode]="mode()" [busy]="busy()" /><button (click)="settingsRequested.emit()">
         Einstellungen

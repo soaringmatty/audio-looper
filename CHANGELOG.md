@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.14.0 — 2026-11-17
+
+- Center MIDI track circles between the heading and instrument selector without state-dependent movement or shrinking their original size. Remove the small per-track status row at the user's request; use the freed space as equal top/bottom dial padding. Keep existing action state/countdown in the main button's accessible label. MIDI template/component styles only, no audio/engine changes. Original sizing formula and three synthetic browser states checked at 1280/960/390 px; production build passed.
+- Add MIDI-only versioned `.aloop` project export/import with validation and replace confirmation. Export completed layers anytime without changing active recording/overdub; load paused at a common loop zero, or the longest loop's beginning while preserving relative phases if no shared zero exists. No standard MIDI/audio export or device/calibration import.
+- Add true global MIDI pause/resume for transport, capture and metronome. All mute sets actual individual track mutes, permits selective reactivation, and becomes All active when all are muted; no extra mute overlay. Chase held loop voices on resume; keep existing external MIDI queue-clear limitations explicit.
+- Group project/transport controls beside reset in the footer, remove pause status copy, and size workspace/metronome rows by content to prevent overlap.
+- Verify project roundtrip/import guards, canonical start/fallback, pause/resume and individual mutes in three focused synthetic tests (`midi-project.test.ts`), plus production build. Isolated browser layout checked at 1280, 960 and 390 px, including footer controls, pause text removal and individual mutes. No hardware acceptance.
+- End the previous track's overdub immediately when changing tracks in MIDI/audio; cancel queued overdub starts without changing loop phase or length.
+- Offer the browser drum kit on every track and keep live monitoring independent of loop mute, including held notes and pedals.
+- Extend the German physical keyboard mapping from `<` through `-` across eleven white notes with dynamically matching black notes above. Left/right moves by one white key, up/down by one full octave.
+- Remember each track's piano range; default and confirmed global reset start at B3 (German H3) for melodic instruments and B1 (H1) for drum kits, so Y plays C4/C2. Single-track clear and reset cancellation preserve ranges.
+- Focused synthetic tests and production builds are documented in the verification record. No broad regression or hardware acceptance.
+
 ## v0.13.1 — 2026-11-16
 
 - Fix MIDI metronome spacing: keep the time signature visible, constrain output selector width and align control heights and spacing.

@@ -1,4 +1,5 @@
 import { DEFAULT_PROGRAMS } from './programs';
+import { defaultPianoStart } from './piano';
 import { PEDAL_CONTROLLERS } from './midi-events';
 import { compileLoop } from './loop-seam';
 export type Mode = 'free' | 'tempo';
@@ -30,6 +31,7 @@ export interface Track {
   volume: number;
   program: number;
   octave: number;
+  pianoStart?: number;
   fixedBars?: number | null;
   plannedLength?: number;
   autoEnd?: number;
@@ -76,7 +78,8 @@ export class LoopEngine {
     muted: false,
     volume: 100,
     program: DEFAULT_PROGRAMS[id],
-    octave: id === 4 ? 2 : 4,
+    octave: id === 4 ? 1 : 3,
+    pianoStart: defaultPianoStart(id === 4),
   }));
   mode: Mode = 'free';
   bpm = 120;
@@ -87,6 +90,45 @@ export class LoopEngine {
   origin: number | null = null;
   reference = 0;
   lastTick = 0;
+  pausedAt: number | null = null;
+  get allMuted(): boolean {
+    return this.tracks.every((t) => t.muted);
+  }
+  get paused(): boolean {
+    return this.pausedAt !== null;
+  }
+  pause(now: number): void {
+    if (this.paused) return;
+    this.tick(now, now);
+    this.pausedAt = now;
+    this.prepared.clear();
+    for (const t of this.tracks) this.resetTrack(t.id, now);
+    this.clearInputHistory();
+  }
+  resume(now: number): void {
+    if (this.pausedAt === null) return;
+    const delta = now - this.pausedAt;
+    if (this.origin !== null) this.origin += delta;
+    for (const t of this.tracks) {
+      t.start += delta;
+      t.takeStart += delta;
+      if (t.pending) t.pending.at += delta;
+      if (t.autoEnd !== undefined) t.autoEnd += delta;
+      if (t.unmuteAt !== undefined) t.unmuteAt += delta;
+      if (t.releaseTail) t.releaseTail.until += delta;
+    }
+    this.pausedAt = null;
+    this.lastTick = now;
+    for (const t of this.tracks) this.invalidateTrack(t.id, now);
+  }
+  toggleAllMuted(now: number): void {
+    const muted = !this.allMuted;
+    for (const t of this.tracks) {
+      t.muted = muted;
+      t.unmuteAt = undefined;
+      this.invalidateTrack(t.id, now);
+    }
+  }
   startToleranceMs = 50;
   unmuteMode: 'cycle' | 'immediate' = 'cycle';
   // Output-only previews. Capture and visible state change at the real boundary.
@@ -107,7 +149,13 @@ export class LoopEngine {
   clearInputHistory(): void {
     for (const notes of this.heldInput) notes.clear();
   }
-  select(id: number): void {
+  select(id: number, now = performance.now()): void {
+    if (id === this.selected || !this.tracks[id]) return;
+    this.tick(now, now);
+    const previous = this.tracks[this.selected];
+    if (previous.state === 'overdub') this.endOverdub(previous, now);
+    else if (previous.state === 'playing' && previous.pending?.action === 'dub')
+      previous.pending = undefined;
     this.selected = id;
     this.clearInputHistory();
   }
@@ -124,6 +172,7 @@ export class LoopEngine {
   }
   get tempoLocked(): boolean {
     return (
+      this.paused ||
       (this.busy && this.mode !== 'tempo') ||
       this.tracks.some(
         (t) =>
@@ -160,6 +209,8 @@ export class LoopEngine {
     return at;
   }
   press(id: number, now: number): void {
+    if (this.paused) return;
+    this.select(id, now);
     this.tick(now, now);
     const t = this.tracks[id];
     this.selected = id;
@@ -240,6 +291,12 @@ export class LoopEngine {
         for (let i = 0; i < note.count; i++) t.take.push({ at: 0, data: [...note.data] });
   }
   private endOverdub(t: Track, now: number): void {
+    const prepared = this.prepared.get(t.id);
+    if (prepared) {
+      this.sink.cancelScheduled?.(t.id, prepared.at, now);
+      t.cursor = Math.min(t.cursor, prepared.at);
+      this.prepared.delete(t.id);
+    }
     const notes: Record<string, number> = {};
     const pedals = new Set<string>();
     for (const e of t.take) {
@@ -327,6 +384,7 @@ export class LoopEngine {
     } else this.invalidateTrack(t.id, now);
   }
   input(data: number[], now: number, track = this.selected, eventAt = now): void {
+    if (this.paused) return;
     this.tick(now, now);
     const op = data[0] & 0xf0;
     if (![0x80, 0x90, 0xa0, 0xb0, 0xd0, 0xe0].includes(op)) return;
@@ -369,6 +427,7 @@ export class LoopEngine {
     if (prepared && now < prepared.at) this.prepareBoundary(t, now, prepared.cursor);
   }
   tick(now: number, horizon = now + 30): void {
+    if (this.paused) return;
     this.lastTick = now;
     for (const t of this.tracks) {
       if (t.unmuteAt !== undefined && t.unmuteAt <= now + EPS) {
@@ -523,7 +582,7 @@ export class LoopEngine {
   }
   private chaseTrack(t: Track, now: number): void {
     t.cursor = now;
-    if (!t.length || t.muted) return;
+    if (!t.length || t.muted || this.paused) return;
     const phase = (((now - t.start) % t.length) + t.length) % t.length;
     const { notes, controls } = this.noteState(t, phase);
     for (const data of controls.values()) this.sink.send(t.id, data, now);
@@ -597,6 +656,7 @@ export class LoopEngine {
     }
   }
   phase(t: Track, now: number, common = false): number {
+    now = this.pausedAt ?? now;
     const length = common ? this.grid : t.length;
     return length
       ? ((((now - (common ? (this.origin ?? now) : t.start)) % length) + length) % length) / length

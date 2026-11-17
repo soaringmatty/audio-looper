@@ -18,6 +18,7 @@ describe('Hardwarefreier Umbau: drei gezielte Fälle', () => {
     midi.browser.send = (data, at) => output.push({ data, at });
     midi.browser.clear = () => {};
     const piano = new PianoController((data) => midi.receive(data));
+    piano.startNote = 60; // Explicit C4 range for this recording/shift scenario.
     engine.afterRecord = 'play';
     engine.press(0, 0);
     now = 100;
@@ -50,7 +51,11 @@ describe('Hardwarefreier Umbau: drei gezielte Fälle', () => {
     piano.down('KeyZ', 0);
     expect(output.at(-1)?.data).toEqual([0x90, 72, 100]);
     piano.release();
-    expect(PIANO_KEYS.map((k) => k.label).join('')).toBe('YSXDCVGBHNJM');
+    expect(
+      PIANO_KEYS.filter((k) => !k.black)
+        .map((k) => k.label)
+        .join(''),
+    ).toBe('<YXCVBNM,.-');
     vi.restoreAllMocks();
   });
   it('Browser-Routing trennt Programme und Lautstärken nach MIDI-Kanal und räumt Stimmen auf', () => {

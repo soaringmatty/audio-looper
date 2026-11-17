@@ -4,10 +4,17 @@ import { focusPerformance } from '../../shared/ui/performance-focus';
 import { Injectable, OnDestroy, signal, computed } from '@angular/core';
 
 import { LoopEngine, Track } from './loop-engine';
+import {
+  exportMidiProject,
+  parseMidiProject,
+  restoreMidiProject,
+  MidiProject,
+  MAX_PROJECT_BYTES,
+} from './midi-project';
 import { MidiRouter, OutputProfile } from './midi-router';
 
 import { Metronome } from './metronome';
-import { PianoController, PIANO_KEYS, FULL_PIANO, octaveShortcut } from './piano';
+import { PianoController, FULL_PIANO, octaveShortcut, defaultPianoStart } from './piano';
 import { targetState, buttonLabel, countdown } from './feedback';
 import { shortcut } from '../../shared/shortcuts';
 import {
@@ -55,7 +62,9 @@ export class MidiWorkspace implements OnDestroy {
   engine = new LoopEngine(this.midi);
   metro = new Metronome(() => this.midi.browser.context);
   piano = new PianoController((data) => this.midi.receive(data));
-  keys = PIANO_KEYS;
+  get keys() {
+    return this.piano.keys;
+  }
   fullPiano = FULL_PIANO;
   targetState = targetState;
   buttonLabel = buttonLabel;
@@ -64,6 +73,114 @@ export class MidiWorkspace implements OnDestroy {
   private lastInputId = 'piano';
   settingsOpen = false;
   resetOpen = false;
+  pendingProject: MidiProject | null = null;
+  projectBusy = false;
+  private transportBusy = false;
+  projectStatus = '';
+  exportProject(): void {
+    try {
+      const data = exportMidiProject(this.engine, this.midi.browser.requestedBank);
+      const serialized = JSON.stringify(data);
+      parseMidiProject(serialized); // Never download a project our own importer would reject.
+      const url = URL.createObjectURL(new Blob([serialized], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'midi-loop-' + new Date().toISOString().replace(/[:.]/g, '-') + '.aloop';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      this.projectStatus =
+        'Projekt exportiert. Laufende Erstaufnahme und aktuelle Overdub-Schicht sind nicht enthalten.';
+    } catch {
+      this.warning = 'Projekt konnte nicht exportiert werden.';
+    }
+    this.refresh();
+  }
+  async importProject(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || this.projectBusy) return;
+    this.projectBusy = true;
+    try {
+      if (file.size > MAX_PROJECT_BYTES) throw Error('Projektdatei ist zu groß (maximal 16 MiB).');
+      this.pendingProject = parseMidiProject(await file.text());
+    } catch (error) {
+      this.warning =
+        error instanceof SyntaxError
+          ? 'Keine gültige JSON-Projektdatei.'
+          : String((error as Error).message);
+    } finally {
+      this.projectBusy = false;
+      this.refresh();
+    }
+  }
+  async confirmImportProject(): Promise<void> {
+    const project = this.pendingProject;
+    if (!project || this.projectBusy || this.transportBusy) return;
+    this.projectBusy = true;
+    try {
+      if (this.midi.outputId === 'browser' && this.midi.browser.bankId !== project.soundBank)
+        await this.midi.browser.selectBank(project.soundBank);
+      this.release();
+      const now = performance.now();
+      this.metro.pause();
+      restoreMidiProject(this.engine, project, now);
+      this.midi.browser.requestedBank = project.soundBank;
+      this.signature = `${project.beats}/${project.denominator}`;
+      this.syncMetro();
+      this.metro.align(now, now);
+      this.tempoConfirmed = project.mode === 'tempo';
+      this.tempoCandidates = [];
+      this.tempoOpen = false;
+      this.piano.startNote = this.engine.tracks[project.selected].pianoStart!;
+      this.timing.cancel('Projekt geladen.');
+      this.warning = '';
+      this.projectStatus = '';
+      this.pendingProject = null;
+    } catch {
+      this.warning = 'Projekt konnte nicht geladen werden. Soundbank und Ausgang prüfen.';
+    } finally {
+      this.projectBusy = false;
+      this.refresh();
+    }
+  }
+  async togglePause(): Promise<void> {
+    if (this.transportBusy || this.projectBusy) return;
+    this.transportBusy = true;
+    try {
+      if (this.engine.paused) {
+        try {
+          if (this.midi.outputId === 'browser')
+            await this.midi.browser.enable(this.engine.tracks.map((t) => t.program));
+          if (this.metro.enabled && this.metro.outputMode === 'laptop')
+            await this.metro.context?.resume();
+        } catch {
+          this.warning = 'Audio konnte nicht fortgesetzt werden.';
+          this.refresh();
+          return;
+        }
+        const now = performance.now();
+        const delta = now - this.engine.pausedAt!;
+        this.release();
+        this.metro.resume(delta, now);
+        this.metro.setVolume();
+        this.engine.resume(now);
+      } else {
+        this.release(); // Capture releases before freezing; held live notes must not hang.
+        this.timing.cancel('Messung bei Pause abgebrochen.');
+        this.engine.pause(performance.now());
+        this.metro.pause();
+      }
+      this.projectStatus = '';
+      this.refresh();
+    } finally {
+      this.transportBusy = false;
+    }
+  }
+  toggleAllMuted(): void {
+    this.engine.toggleAllMuted(this.now());
+    this.refresh();
+  }
   commonRing = false;
   signature = '4/4';
   settingsTab: 'settings' | 'midi' | 'tempo' | 'help' | 'diagnostics' = 'settings';
@@ -120,7 +237,7 @@ export class MidiWorkspace implements OnDestroy {
   }
   instrumentGroups(id: number) {
     if (this.midi.clavinova) return [{ name: 'Yamaha CLP-625', programs: this.clavinovaVoices }];
-    return id === 4
+    return this.midi.outputId === 'browser' || id === 4
       ? [
           ...this.programGroups,
           { name: 'Drum Kits', programs: [{ id: this.drumKit, name: 'Standard Drum Kit' }] },
@@ -237,7 +354,8 @@ export class MidiWorkspace implements OnDestroy {
       this.refresh();
     };
     this.midi.onLoopPedal = () => {
-      if (!this.settingsOpen && !this.resetOpen) void this.trigger(this.engine.selected);
+      if (!this.settingsOpen && !this.resetOpen && !this.pendingProject)
+        void this.trigger(this.engine.selected);
     };
     this.midi.onInstrumentChange = (id, program) => this.program(this.engine.tracks[id], program);
     void this.midi.prepareAudio();
@@ -257,6 +375,7 @@ export class MidiWorkspace implements OnDestroy {
     };
     this.worker.onmessage = () => {
       const now = performance.now();
+      if (this.engine.paused) return;
       if (this.engine.busy && now - this.engine.lastTick > 250) {
         this.engine.invalidate(now);
         this.warning = 'Timing-Unterbrechung erkannt. App im Vordergrund lassen.';
@@ -266,7 +385,7 @@ export class MidiWorkspace implements OnDestroy {
       this.metro.tick(now);
     };
     const frame = () => {
-      this.clock = performance.now();
+      this.clock = this.now();
       this.refresh();
       this.animation = requestAnimationFrame(frame);
     };
@@ -344,7 +463,7 @@ export class MidiWorkspace implements OnDestroy {
     this.refresh();
   }
   now(): number {
-    return performance.now();
+    return this.engine.pausedAt ?? performance.now();
   }
   syncMetronomeAdvance(): void {
     this.metro.compensateOutput =
@@ -384,9 +503,11 @@ export class MidiWorkspace implements OnDestroy {
   select(id: number): void {
     if (this.engine.selected !== id) {
       this.engine.tracks[this.engine.selected].octave = this.piano.octave;
+      this.engine.tracks[this.engine.selected].pianoStart = this.piano.startNote;
+      this.engine.select(id, this.now());
       this.release();
-      this.engine.select(id);
-      this.piano.octave = this.engine.tracks[id].octave;
+      this.piano.startNote =
+        this.engine.tracks[id].pianoStart ?? (this.engine.tracks[id].octave + 1) * 12;
     }
   }
   trackReady(id: number): boolean {
@@ -396,6 +517,10 @@ export class MidiWorkspace implements OnDestroy {
     if (this.midi.outputId === 'browser' && !this.midi.browser.ready) void this.midi.enableAudio();
   }
   async trigger(id: number): Promise<void> {
+    if (this.engine.paused) {
+      await this.togglePause();
+      return;
+    }
     this.timing.cancel('Messung bei Aufnahmebedienung abgebrochen.');
     this.select(id);
     if (this.midi.outputId === 'browser' && !this.midi.browser.ready) {
@@ -431,7 +556,7 @@ export class MidiWorkspace implements OnDestroy {
     }
   }
   key = (e: KeyboardEvent): void => {
-    if (this.resetOpen) return;
+    if (this.resetOpen || this.pendingProject) return;
     const target = e.target as HTMLElement;
     if (e.key === 'Escape' && this.tempoOpen && !this.settingsOpen) {
       e.preventDefault();
@@ -447,11 +572,30 @@ export class MidiWorkspace implements OnDestroy {
       return;
     }
     const editing = !!target.closest('input,select,textarea,[contenteditable="true"]');
-    if (this.pianoVisible && !editing) {
+    const pianoNavigation = !target.closest(
+      '[role="combobox"],[role="listbox"],[role="slider"],[role="menu"],[role="tablist"]',
+    );
+    if (
+      this.pianoVisible &&
+      !editing &&
+      pianoNavigation &&
+      !e.shiftKey &&
+      !e.ctrlKey &&
+      !e.altKey &&
+      !e.metaKey &&
+      ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)
+    ) {
+      e.preventDefault();
+      if (e.repeat) return;
       const delta = octaveShortcut(e);
       if (delta) {
         e.preventDefault();
         this.shiftOctave(delta);
+        return;
+      }
+      if (['ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        e.preventDefault();
+        this.shiftPiano(e.code === 'ArrowLeft' ? -1 : 1);
         return;
       }
     }
@@ -552,9 +696,14 @@ export class MidiWorkspace implements OnDestroy {
     this.piano.up(`pointer:${e.pointerId}`);
   }
   shiftOctave(delta: number): void {
+    if (!this.piano.canShiftWhite(delta * 7)) return;
+    this.shiftPiano(delta * 7);
+  }
+  shiftPiano(delta: number): void {
     this.waitingNotes.clear();
-    this.piano.shift(delta);
+    this.piano.shiftWhite(delta);
     this.engine.tracks[this.engine.selected].octave = this.piano.octave;
+    this.engine.tracks[this.engine.selected].pianoStart = this.piano.startNote;
   }
   pianoKeyboard(e: KeyboardEvent, note: number, down: boolean): void {
     if (e.code !== 'Enter' && e.code !== 'Space') return;
@@ -613,11 +762,13 @@ export class MidiWorkspace implements OnDestroy {
       this.clear(t.id);
       this.setRecordBars(t, null);
       this.resetVolume(t);
+      t.pianoStart = defaultPianoStart(isDrumProgram(t.program));
+      t.octave = Math.floor(t.pianoStart / 12) - 1;
     }
+    this.piano.startNote = this.engine.tracks[this.engine.selected].pianoStart!;
     this.refresh();
   }
   mute(id: number): void {
-    if (id === this.engine.selected) this.release();
     this.engine.mute(id, this.now());
   }
   unmuteHint(t: Track): string {
@@ -666,6 +817,15 @@ export class MidiWorkspace implements OnDestroy {
       return;
     }
     this.timing.cancel('Messung bei Metronomwechsel abgebrochen.');
+    if (this.engine.paused) {
+      try {
+        await this.metro.toggle(this.now(), this.engine.origin ?? this.now());
+      } catch {
+        this.warning = 'Metronom: Audiofreigabe prüfen.';
+      }
+      this.refresh();
+      return;
+    }
     if (this.metro.outputMode === 'laptop') this.activateAudio();
     this.syncMetronomeAdvance();
     if (
@@ -806,7 +966,7 @@ export class MidiWorkspace implements OnDestroy {
   progress(t: Track): number {
     const clock = Math.max(
       t.start,
-      this.midi.outputId === 'browser'
+      !this.engine.paused && this.midi.outputId === 'browser'
         ? audibleNow(this.midi.browser.context, this.clock)
         : this.clock,
     );

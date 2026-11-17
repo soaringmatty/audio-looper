@@ -3,6 +3,17 @@ export class Metronome {
   context?: AudioContext;
   gain?: GainNode;
   enabled = false;
+  paused = false;
+  pause(): void {
+    this.paused = true;
+    this.stopVoices();
+    this.onMidiStop();
+  }
+  resume(delta: number, now: number): void {
+    this.origin += delta;
+    this.cursor = now;
+    this.paused = false;
+  }
   volume = 0.8;
   origin = 0;
   cursor = 0;
@@ -88,7 +99,7 @@ export class Metronome {
   setVolume(): void {
     if (this.context && this.gain)
       this.gain.gain.setValueAtTime(
-        this.enabled && this.outputMode === 'laptop' ? this.volume : 0,
+        this.enabled && !this.paused && this.outputMode === 'laptop' ? this.volume : 0,
         this.context.currentTime,
       );
   }
@@ -117,6 +128,7 @@ export class Metronome {
     };
   }
   tick(now: number, horizon = now + this.advanceMs + 50): void {
+    if (this.paused) return;
     if (!this.enabled || (this.outputMode === 'laptop' && (!this.context || !this.gain))) return;
     const beat = ((60000 / this.bpm) * 4) / this.denominator;
     const renderFor = now + this.advanceMs;

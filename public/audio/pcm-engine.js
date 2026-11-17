@@ -99,14 +99,8 @@ export class PCMEngine {
     return origin + Math.max(0, Math.ceil((now - origin) / unit)) * unit;
   }
   config(c) {
-    for (const key of [
-      'monitor',
-      'monitorVolume',
-      'master',
-      'metroVolume',
-      'afterRecord',
-      'selected',
-    ])
+    if (c.selected !== undefined) this.select(c.selected);
+    for (const key of ['monitor', 'monitorVolume', 'master', 'metroVolume', 'afterRecord'])
       if (c[key] !== undefined) this[key] = c[key];
     if (!this.busy && !this.calibration) {
       for (const key of ['bpm', 'beats', 'denominator'])
@@ -120,6 +114,18 @@ export class PCMEngine {
           (Math.max(0, Math.min(1000, c.compensationMs)) * this.rate) / 1000,
         );
     }
+  }
+  select(id) {
+    if (id === this.selected || !this.tracks[id]) return;
+    const previous = this.tracks[this.selected];
+    if (previous.state === 'overdub') {
+      previous.state = 'playing';
+      previous.pending = null;
+      // Keep the compensation tail, but accept no input played after selection.
+      if (previous.capture) previous.capture.end = this.frame;
+    } else if (previous.state === 'playing' && previous.pending?.action === 'dub')
+      previous.pending = null;
+    this.selected = id;
   }
   command(c) {
     this.error = '';
@@ -259,7 +265,7 @@ export class PCMEngine {
       return;
     }
     if (c.type !== 'press') return;
-    this.selected = t.id;
+    this.select(t.id);
     const now = this.frame;
     if (t.state === 'empty') {
       if (this.mode === 'free' && !this.reference && this.busy) {
@@ -487,7 +493,7 @@ export class PCMEngine {
           fx.process(feed ? inL : 0, feed ? inR : 0);
           if (t.id === this.selected) {
             peakFx = Math.max(peakFx, Math.abs(fx.left), Math.abs(fx.right));
-            if (this.monitor && !t.muted) {
+            if (this.monitor) {
               outL += fx.left * this.monitorVolume;
               outR += fx.right * this.monitorVolume;
             }

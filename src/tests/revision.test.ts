@@ -45,6 +45,7 @@ it('88 Tasten, markierte Keybind-Oktave, Plus/Minus und separater Hover-Fortschr
   expect(FULL_PIANO.filter((k) => !k.black)).toHaveLength(52);
   const sent: number[][] = [];
   const piano = new PianoController((data) => sent.push(data));
+  piano.startNote = 60; // Explicit C4 range; defaults are covered in piano-performance.
   piano.downNote('pointer:1', 21);
   piano.down('KeyZ', 0);
   expect(sent).toEqual([
@@ -54,25 +55,25 @@ it('88 Tasten, markierte Keybind-Oktave, Plus/Minus und separater Hover-Fortschr
   piano.shift(1);
   expect(sent).toContainEqual([0x80, 21, 0]);
   expect(sent).toContainEqual([0x80, 60, 0]);
-  expect(piano.binding(72)).toBe('Y');
+  expect(piano.binding(72)).toBe('<');
   expect(piano.mapped(71)).toBe(false);
   expect(piano.mapped(83)).toBe(true);
   const base = {
-    key: '+',
-    code: 'BracketRight',
+    key: 'ArrowUp',
+    code: 'ArrowUp',
     ctrlKey: false,
     altKey: false,
     metaKey: false,
     repeat: false,
   };
   expect(octaveShortcut(base)).toBe(1);
-  expect(octaveShortcut({ ...base, key: '-', code: 'NumpadSubtract' })).toBe(-1);
+  expect(octaveShortcut({ ...base, key: 'ArrowDown', code: 'ArrowDown' })).toBe(-1);
   expect(octaveShortcut({ ...base, repeat: true })).toBe(0);
   expect(octaveShortcut({ ...base, ctrlKey: true })).toBe(0);
-  piano.shift(100);
-  expect(piano.octave).toBe(7);
-  piano.shift(-100);
-  expect(piano.octave).toBe(1);
+  piano.shiftWhite(100);
+  expect(piano.rangeLabel).toBe('G6–C8');
+  piano.shiftWhite(-100);
+  expect(piano.startNote).toBe(21);
   const css = readFileSync(new URL('../styles/workspace.css', import.meta.url), 'utf8').replace(
       /\s+/g,
       '',

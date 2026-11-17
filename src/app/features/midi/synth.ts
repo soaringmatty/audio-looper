@@ -7,6 +7,7 @@ interface Channel {
   activeProgram: number;
   status: string;
   volume: number;
+  liveVolume: number;
   pan: number;
   loaded: boolean;
 }
@@ -46,6 +47,7 @@ export class BrowserSynth {
     activeProgram: -1,
     status: 'Soundbank vorbereiten',
     volume: 100,
+    liveVolume: 100,
     pan: 64,
     loaded: false,
   }));
@@ -182,7 +184,7 @@ export class BrowserSynth {
     for (const channel of [id, id + 5]) {
       this.synth.midiChannels[channel]?.setDrums(isDrumProgram(c.program));
       this.synth.programChange(channel, Math.max(0, wireProgram(c.program)));
-      this.synth.controllerChange(channel, 7, c.volume);
+      this.synth.controllerChange(channel, 7, channel === id ? c.volume : c.liveVolume);
       this.synth.controllerChange(channel, 10, c.pan);
     }
     c.activeProgram = c.program;
@@ -207,7 +209,10 @@ export class BrowserSynth {
       void this.loadProgram(id % 5, data[1]);
       return;
     }
-    if (op === 0xb0 && data[1] === 7) c.volume = data[2];
+    if (op === 0xb0 && data[1] === 7) {
+      if (id < 5) c.volume = data[2];
+      else c.liveVolume = data[2];
+    }
     if (op === 0xb0 && data[1] === 10) c.pan = data[2];
     if (!c.loaded || !this.synth) return;
     const time = this.context!.currentTime + Math.max(0, at - performance.now()) / 1000;

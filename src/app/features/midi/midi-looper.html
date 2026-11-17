@@ -45,6 +45,7 @@
   </section>
 
   <footer>
+    <span class="project-status" role="status">{{ vm.projectStatus }}</span>
     <div class="shortcuts">
       <span><kbd>1–5</kbd> Spur</span><span><kbd>Space / Enter</kbd> Aufnahme / Overdub</span
       ><span><kbd>T</kbd> Metronom</span><span><kbd>Shift+1–5</kbd> Track stumm</span
@@ -65,7 +66,34 @@
         MIDI erneut versuchen
       </button>
     }
-    <button class="reset-all-tracks" (click)="vm.resetAllTracks()">Alle Tracks zurücksetzen</button>
+    <div class="project-controls" aria-label="MIDI-Projekt und Wiedergabe">
+      <button (click)="vm.exportProject()">Speichern</button>
+      <button [disabled]="vm.projectBusy" (click)="projectFile.click()">Laden</button>
+      <input
+        #projectFile
+        type="file"
+        accept=".aloop,.json,application/json"
+        hidden
+        (change)="vm.importProject($event)"
+      />
+      <button
+        [class.active]="vm.engine.paused"
+        [attr.aria-pressed]="vm.engine.paused"
+        (click)="vm.togglePause()"
+      >
+        {{ vm.engine.paused ? 'Fortsetzen' : 'Pause' }}
+      </button>
+      <button
+        [class.active]="vm.engine.allMuted"
+        [attr.aria-pressed]="vm.engine.allMuted"
+        (click)="vm.toggleAllMuted()"
+      >
+        {{ vm.engine.allMuted ? 'Alle aktiv' : 'Alle stumm' }}
+      </button>
+      <button class="reset-all-tracks" (click)="vm.resetAllTracks()">
+        Alle Tracks zurücksetzen
+      </button>
+    </div>
   </footer>
   <div class="mobile-selector" aria-label="Spur wählen">
     @for (t of vm.engine.tracks; track t.id) {
@@ -96,7 +124,19 @@
 
 @if (vm.resetOpen) {
   <reset-confirmation
+    [resetPianoRanges]="true"
     (confirmed)="vm.confirmResetAllTracks(); workspace.refresh()"
     (cancelled)="vm.resetOpen = false; workspace.refresh()"
+  />
+}
+
+@if (vm.pendingProject) {
+  <reset-confirmation
+    title="MIDI-Projekt laden?"
+    description="Die aktuellen Loops und laufende Aufnahmen werden ersetzt. Das geladene Projekt wartet pausiert auf Fortsetzen."
+    actionLabel="Projekt laden"
+    [busy]="vm.projectBusy"
+    (confirmed)="vm.confirmImportProject()"
+    (cancelled)="!vm.projectBusy && (vm.pendingProject = null); workspace.refresh()"
   />
 }

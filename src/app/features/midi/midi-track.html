@@ -47,33 +47,6 @@
     </span>
   </button>
 </div>
-<div class="track-info">
-  @if (vm.unmuteHint(t) || (t.pending ? vm.countdown(t, vm.clock) : vm.pending(t))) {
-    <span
-      class="pending"
-      aria-live="polite"
-      [title]="vm.unmuteHint(t) || (t.pending ? vm.countdown(t, vm.clock) : vm.pending(t))"
-      >{{ vm.unmuteHint(t) || (t.pending ? vm.countdown(t, vm.clock) : vm.pending(t)) }}</span
-    >
-  } @else {
-    <div
-      class="sample-status"
-      [class.status-hidden]="
-        vm.midi.outputId !== 'browser' ||
-        (vm.midi.browser.channels[t.id].loaded &&
-          !vm.midi.browser.bankLoading &&
-          !vm.midi.browser.error)
-      "
-      [class.loading]="vm.midi.outputId === 'browser' && !vm.midi.browser.trackReady(t.id)"
-    >
-      {{
-        vm.midi.outputId === 'browser'
-          ? vm.midi.browser.channels[t.id].status
-          : 'MIDI-Kanal ' + (vm.midi.channel(t.id) + 1)
-      }}
-    </div>
-  }
-</div>
 @if (vm.midi.clavinova && !t.length) {
   <div
     class="instrument-follow"

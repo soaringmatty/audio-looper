@@ -3,6 +3,7 @@ import {
   Component,
   ElementRef,
   OnDestroy,
+  input,
   output,
   viewChild,
 } from '@angular/core';
@@ -17,13 +18,18 @@ import {
       (cancel)="$event.preventDefault(); cancelled.emit()"
       (keydown)="$event.stopPropagation()"
     >
-      <h2 id="reset-title">Alle Tracks zurücksetzen?</h2>
+      <h2 id="reset-title">{{ title() }}</h2>
       <p id="reset-description">
-        Alle Aufnahmen und Taktvorgaben werden gelöscht. Die Track-Lautstärken werden zurückgesetzt.
+        {{ description() }}
+        @if (resetPianoRanges()) {
+          Auch alle Piano-Tastenbereiche werden zurückgesetzt.
+        }
       </p>
       <div class="actions">
-        <button autofocus (click)="cancelled.emit()">Abbrechen</button>
-        <button class="danger" (click)="confirmed.emit()">Alle zurücksetzen</button>
+        <button autofocus [disabled]="busy()" (click)="cancelled.emit()">Abbrechen</button>
+        <button class="danger" [disabled]="busy()" (click)="confirmed.emit()">
+          {{ actionLabel() }}
+        </button>
       </div>
     </dialog>
   `,
@@ -59,6 +65,13 @@ import {
   `,
 })
 export class ResetConfirmation implements OnDestroy {
+  readonly title = input('Alle Tracks zurücksetzen?');
+  readonly description = input(
+    'Alle Aufnahmen und Taktvorgaben werden gelöscht. Die Track-Lautstärken werden zurückgesetzt.',
+  );
+  readonly actionLabel = input('Alle zurücksetzen');
+  readonly busy = input(false);
+  readonly resetPianoRanges = input(false);
   readonly confirmed = output<void>();
   readonly cancelled = output<void>();
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');

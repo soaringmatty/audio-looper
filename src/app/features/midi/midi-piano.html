@@ -3,17 +3,36 @@
   <div class="octave-controls">
     <button
       aria-label="Oktave tiefer"
-      [disabled]="vm.piano.octave === 1"
+      title="Oktave tiefer (↓)"
+      [disabled]="!vm.piano.canShiftWhite(-7)"
       (click)="vm.shiftOctave(-1); workspace.refresh()"
     >
-      −</button
-    ><span>Oktave {{ vm.piano.octave }} <kbd>− / +</kbd></span
-    ><button
+      ↓
+    </button>
+    <button
+      aria-label="Eine Weißtaste tiefer"
+      title="Eine Weißtaste tiefer (←)"
+      [disabled]="!vm.piano.canShiftWhite(-1)"
+      (click)="vm.shiftPiano(-1); workspace.refresh()"
+    >
+      ←
+    </button>
+    <span>{{ vm.piano.rangeLabel }} <kbd>← / → · ↑ / ↓</kbd></span>
+    <button
+      aria-label="Eine Weißtaste höher"
+      title="Eine Weißtaste höher (→)"
+      [disabled]="!vm.piano.canShiftWhite(1)"
+      (click)="vm.shiftPiano(1); workspace.refresh()"
+    >
+      →
+    </button>
+    <button
       aria-label="Oktave höher"
-      [disabled]="vm.piano.octave === 7"
+      title="Oktave höher (↑)"
+      [disabled]="!vm.piano.canShiftWhite(7)"
       (click)="vm.shiftOctave(1); workspace.refresh()"
     >
-      +
+      ↑
     </button>
   </div>
   <button aria-label="Piano ausblenden" (click)="vm.togglePiano(); workspace.refresh()">×</button>
@@ -32,7 +51,7 @@
   id="piano-surface"
   class="piano-keys"
   tabindex="0"
-  aria-label="88 Klaviertasten A0 bis C8. Plus/Minus wechselt die Tastatur-Oktave."
+  aria-label="88 Klaviertasten A0 bis C8. Pfeile links/rechts verschieben um eine Weißtaste, hoch/runter um eine Oktave."
 >
   @for (k of vm.fullPiano; track k.note) {
     <button

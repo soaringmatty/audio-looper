@@ -250,7 +250,7 @@ export class MidiRouter implements MidiSink {
     }
     this.engine.input(data, now, track, receivedAt);
     this.trace.record('input-routed', { track, data: [...data], monitor: this.monitor }, now);
-    if (this.monitor && !this.engine.tracks[track].muted) this.sendLive(track, data, now);
+    if (this.monitor) this.sendLive(track, data, now);
   }
   private receiveProgram(channel: number, program: number): void {
     if (!this.syncInstrument && !this.clavinova) return;
@@ -338,8 +338,7 @@ export class MidiRouter implements MidiSink {
       for (let i = 0; i < note.count; i++) {
         const off = [0x80 | (note.data[0] & 15), note.data[1], 0];
         this.engine.input(off, now, note.track);
-        if (this.monitor && !this.engine.tracks[note.track].muted)
-          this.sendLive(note.track, off, now);
+        if (this.monitor) this.sendLive(note.track, off, now);
       }
     }
     for (const [key, pedal] of pedals) {
@@ -347,8 +346,7 @@ export class MidiRouter implements MidiSink {
       off[2] = 0;
       this.ignoredRelease.add(key);
       this.engine.input(off, now, pedal.track);
-      if (this.monitor && !this.engine.tracks[pedal.track].muted)
-        this.sendLive(pedal.track, off, now);
+      if (this.monitor) this.sendLive(pedal.track, off, now);
     }
   }
   closeLiveTake(track: number, at: number): void {
@@ -640,14 +638,29 @@ export class MidiRouter implements MidiSink {
         this.deliver(id, [0xc0, voice?.program ?? t.program], at, ch);
         this.configuredPrograms.set(key, program);
       }
-      this.deliver(id, [0xb0, 7, t.muted ? 0 : t.volume], at, ch);
+      // Mute gates playback only. Dedicated live channels retain the track level.
+      this.deliver(
+        id,
+        [0xb0, 7, ch === channel && (t.muted || this.engine.paused) ? 0 : t.volume],
+        at,
+        ch,
+      );
     }
   }
   resumeTrack(id: number, at: number, includeLive = false): void {
     for (const ch of new Set(
       includeLive ? [this.channel(id), this.liveChannel(id)] : [this.channel(id)],
     ))
-      this.deliver(id, [0xb0, 7, this.engine.tracks[id].volume], at, ch);
+      this.deliver(
+        id,
+        [
+          0xb0,
+          7,
+          ch === this.channel(id) && this.engine.paused ? 0 : this.engine.tracks[id].volume,
+        ],
+        at,
+        ch,
+      );
   }
   cancelScheduled(id: number, from: number, now: number): void {
     if (this.outputId === 'browser') {

@@ -152,7 +152,7 @@ it('Worklet und Web MIDI entfernen nur Zielspur-Events; verspätetes Live-Note-O
 it('Piano/Piano/Strings/Violin/Drums, getrennte Oktaven und echtes Drum-Routing statt Program 128 auf MIDI', async () => {
   const e = new LoopEngine({ send: () => {}, reset: () => {} });
   expect(e.tracks.map((t) => t.program)).toEqual([0, 0, 48, 40, 128]);
-  expect(e.tracks.map((t) => t.octave)).toEqual([4, 4, 4, 4, 2]);
+  expect(e.tracks.map((t) => t.octave)).toEqual([3, 3, 3, 3, 1]);
   const midi = new MidiRouter();
   midi.engine = e;
   const output = { state: 'connected', send: vi.fn(), clear: vi.fn() };
