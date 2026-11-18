@@ -5,7 +5,6 @@ import { compileLoop } from './loop-seam';
 export type Mode = 'free' | 'tempo';
 export type State = 'empty' | 'armed' | 'recording' | 'playing' | 'overdub';
 export type Action = 'start' | 'finish' | 'dub' | 'play';
-export type InputOrigin = 'input' | 'cleanup';
 export interface MidiEvent {
   at: number;
   data: number[];
@@ -128,7 +127,7 @@ export class LoopEngine {
     this.prepared.clear();
     for (const t of this.tracks) {
       for (const capture of [...this.seamCaptures[t.id]])
-        this.releaseSeam(t, [capture.marker.data[0], capture.attack[1], 0], at, at, 'cleanup');
+        this.releaseSeam(t, [capture.marker.data[0], capture.attack[1], 0], at);
       if (t.state === 'overdub') {
         this.endOverdub(t, at);
         this.finishReleaseTail(t, at, true);
@@ -167,10 +166,12 @@ export class LoopEngine {
     { length: 5 },
     () => new Map<string, { at: number; data: number[]; count: number }>(),
   );
+  private heldPedals = Array.from({ length: 5 }, () => new Map<string, number[]>());
   clearInputHistory(): void {
     for (const notes of this.heldInput) notes.clear();
+    for (const pedals of this.heldPedals) pedals.clear();
   }
-  // A release after a seam still belongs to the layer that captured its attack.
+  // Note releases still belong to their original attack; pedal takes are sealed.
   private seamCaptures = Array.from(
     { length: 5 },
     () =>
@@ -184,6 +185,7 @@ export class LoopEngine {
   private rememberSeam(t: Track, layer: MidiEvent[]): void {
     for (const marker of layer.filter((e) => e.boundary)) {
       const op = marker.data[0] & 0xf0;
+      if (op !== 0x80) continue; // Pedal takes are sealed, never resolved by a later Off.
       const attack = layer
         .filter(
           (e) =>
@@ -204,56 +206,23 @@ export class LoopEngine {
         });
     }
   }
-  private releaseSeam(
-    t: Track,
-    data: number[],
-    now: number,
-    eventAt = now,
-    origin: InputOrigin = 'input',
-  ): boolean {
+  private releaseSeam(t: Track, data: number[], now: number, eventAt = now): boolean {
     const op = data[0] & 0xf0;
-    if (
-      !(
-        op === 0x80 ||
-        (op === 0x90 && !data[2]) ||
-        (op === 0xb0 && !data[2] && PEDAL_CONTROLLERS.includes(data[1]))
-      )
-    )
-      return false;
+    if (!(op === 0x80 || (op === 0x90 && !data[2]))) return false;
     const captures = this.seamCaptures[t.id].filter((c) => t.layers?.includes(c.layer));
     this.seamCaptures[t.id] = captures;
     const matches = captures.filter(
       (c) =>
         (c.attack[0] & 15) === (data[0] & 15) &&
         c.attack[1] === data[1] &&
-        ((c.attack[0] & 0xf0) === 0xb0) === (op === 0xb0),
+        (c.attack[0] & 0xf0) === 0x90,
     );
     if (!matches.length) return false;
     const phase = (((eventAt - t.start) % t.length) + t.length) % t.length;
     const audiblePhase = (((now - t.start) % t.length) + t.length) % t.length;
     const before = this.noteState(t, audiblePhase + EPS);
-    for (const capture of op === 0xb0 ? matches : matches.slice(0, 1)) {
+    for (const capture of matches.slice(0, 1)) {
       const { layer, marker, attack } = capture;
-      if (op === 0xb0) {
-        // Keep the recorded part intact through its end. A modulo Off on this
-        // same owner would also cut an earlier pedal gesture at the loop head.
-        delete marker.boundary;
-        if (origin === 'input') {
-          const end = eventAt - capture.started >= t.length ? marker.at : phase;
-          if (end > 0)
-            t.layers!.push([
-              { at: 0, data: [...attack] },
-              ...t.take
-                .filter((e) => e.at < end && e.data[0] === attack[0] && e.data[1] === attack[1])
-                .map((e) => ({ at: e.at, data: [...e.data] })),
-              { at: end, data: [...data] },
-            ]);
-        }
-        // Cleanup closes the stored tail, but is not a played release at the
-        // current phase. Physical wrap fragments have their own finite owner.
-        this.seamCaptures[t.id] = this.seamCaptures[t.id].filter((c) => c !== capture);
-        continue;
-      }
       // Replace the safety marker with a real periodic release on the same owner.
       const lastOn = layer
         .filter(
@@ -428,11 +397,17 @@ export class LoopEngine {
     t.autoAction = this.afterRecord;
   }
   private captureLeadIn(t: Track, at: number): void {
+    this.captureHeldPedals(t);
     const tolerance = Math.max(0, Math.min(100, this.startToleranceMs));
     if (!tolerance) return;
     for (const note of this.heldInput[t.id].values())
       if (note.at >= at - tolerance && note.at <= at)
         for (let i = 0; i < note.count; i++) t.take.push({ at: 0, data: [...note.data] });
+  }
+  private captureHeldPedals(t: Track): void {
+    for (const data of this.heldPedals[t.id].values())
+      if (!t.take.some((e) => e.at === 0 && e.data[0] === data[0] && e.data[1] === data[1]))
+        t.take.unshift({ at: 0, data: [...data] });
   }
   private endOverdub(t: Track, now: number): void {
     const prepared = this.prepared.get(t.id);
@@ -460,8 +435,10 @@ export class LoopEngine {
     if (!Object.values(notes).some(Boolean) && !pedals.size) this.finishReleaseTail(t, now);
   }
   private finishReleaseTail(t: Track, now: number, force = false): void {
-    if (force && t.releaseTail)
+    if (force && t.releaseTail) {
       this.sink.closeReleaseTail?.(t.id, t.releaseTail.notes, t.releaseTail.pedals, now);
+      for (const key of t.releaseTail.pedals) this.heldPedals[t.id].delete(key);
+    }
     if (t.take.length) this.addTake(t, this.closeTake(t, Math.min(t.length, now - t.takeStart)));
     t.take = [];
     t.releaseTail = undefined;
@@ -499,8 +476,7 @@ export class LoopEngine {
       }
     }
     const at = Math.max(0, length - 0.01);
-    for (const pedal of pedals.values())
-      events.push({ at, data: [pedal[0], pedal[1], 0], boundary });
+    for (const pedal of pedals.values()) events.push({ at, data: [pedal[0], pedal[1], 0] }); // Finite, immutable pedal take.
     for (const { note, channel, count } of notes.values())
       for (let i = 0; i < count; i++)
         events.push({ at, data: [0x80 | channel, note, 0], boundary });
@@ -521,6 +497,7 @@ export class LoopEngine {
     t.pending = undefined;
     t.state = action === 'dub' ? 'overdub' : 'playing';
     t.takeStart = end;
+    if (t.state === 'overdub') this.captureHeldPedals(t);
     t.cursor = now;
     // Late stop: retain absolute phase and chase notes/controllers at the current position.
     if (prepared?.at === end) {
@@ -528,13 +505,7 @@ export class LoopEngine {
       this.prepared.delete(t.id);
     } else this.invalidateTrack(t.id, now);
   }
-  input(
-    data: number[],
-    now: number,
-    track = this.selected,
-    eventAt = now,
-    origin: InputOrigin = 'input',
-  ): void {
+  input(data: number[], now: number, track = this.selected, eventAt = now): void {
     if (this.paused) return;
     this.tick(now, now);
     const op = data[0] & 0xf0;
@@ -545,8 +516,12 @@ export class LoopEngine {
     )
       return;
     const t = this.tracks[track];
-    const seamRelease = this.releaseSeam(t, data, now, eventAt, origin);
+    const seamRelease = this.releaseSeam(t, data, now, eventAt);
     const key = `${data[0] & 15}:${data[1]}`;
+    if (op === 0xb0 && PEDAL_CONTROLLERS.includes(data[1])) {
+      if (data[2] > 0) this.heldPedals[t.id].set(key, [...data]);
+      else this.heldPedals[t.id].delete(key);
+    }
     if (t.releaseTail) {
       const tail = t.releaseTail;
       let accepted = false;
@@ -573,8 +548,8 @@ export class LoopEngine {
     else if ((op === 0x80 || op === 0x90) && held) {
       if (--held.count <= 0) this.heldInput[t.id].delete(key);
     }
-    // Intermediate pedal values in the new take need their own matching Off as
-    // well; otherwise MAX merging could leave that newer controller owner down.
+    // Every pedal change belongs only to the current capture. Note seam releases
+    // still resolve their attack owner instead of becoming an orphan in this take.
     const closeCurrentPedal =
       op === 0xb0 && t.take.some((e) => e.data[0] === data[0] && e.data[1] === data[1]);
     if ((!seamRelease || closeCurrentPedal) && (t.state === 'recording' || t.state === 'overdub'))
@@ -618,6 +593,7 @@ export class LoopEngine {
           const end = t.takeStart + t.length;
           this.commitOverdub(t, end);
           t.takeStart = end;
+          this.captureHeldPedals(t);
         }
       }
       this.prepareBoundary(t, now, horizon);
@@ -785,6 +761,7 @@ export class LoopEngine {
     if (this.sink.deleteTrack) this.sink.deleteTrack(id, now);
     else this.resetTrack(id, now);
     this.heldInput[id].clear();
+    this.heldPedals[id].clear();
     this.seamCaptures[id] = [];
     const t = this.tracks[id];
     Object.assign(t, {

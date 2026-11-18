@@ -26,7 +26,16 @@ export class PianoRoll implements OnDestroy {
   readonly viewport = viewChild<ElementRef<HTMLElement>>('viewport');
   readonly pedalViewport = viewChild<ElementRef<HTMLElement>>('pedalViewport');
   readonly pedalTypes = PEDALS;
-  readonly pedalCc = signal(64);
+  readonly extraPedals = signal<number[]>([]);
+  readonly pedalLanes = computed(() =>
+    PEDALS.filter(
+      (p) =>
+        p.cc === 64 ||
+        p.cc === 66 ||
+        this.extraPedals().includes(p.cc) ||
+        this.pedals().some((v) => v.cc === p.cc),
+    ),
+  );
   readonly pedalDraft = signal<RollPedal | null>(null);
   readonly pedals = computed(() => {
     this.workspace.view();
@@ -40,26 +49,24 @@ export class PianoRoll implements OnDestroy {
     this.pedals().find((p) => p.id === this.selectedPedal()),
   );
   readonly pedalSegments = computed(() =>
-    this.pedals()
-      .filter((p) => p.cc === this.pedalCc())
-      .flatMap((p) => {
-        const valid =
-          this.pedalDrag?.track === this.editor.track.id &&
-          this.pedalDrag.layers === this.editor.track.layers;
-        const n = valid && this.pedalDraft()?.id === p.id ? this.pedalDraft()! : p;
-        const first = Math.min(n.duration, this.editor.track.length - n.start);
-        return [
-          { pedal: n, part: 0, start: n.start, duration: first, last: first === n.duration },
-          ...(n.duration > first
-            ? [{ pedal: n, part: 1, start: 0, duration: n.duration - first, last: true }]
-            : []),
-        ];
-      }),
+    this.pedals().flatMap((p) => {
+      const valid =
+        this.pedalDrag?.track === this.editor.track.id &&
+        this.pedalDrag.layers === this.editor.track.layers;
+      const n = valid && this.pedalDraft()?.id === p.id ? this.pedalDraft()! : p;
+      const first = Math.min(n.duration, this.editor.track.length - n.start);
+      return [
+        { pedal: n, part: 0, start: n.start, duration: first, last: first === n.duration },
+        ...(n.duration > first
+          ? [{ pedal: n, part: 1, start: 0, duration: n.duration - first, last: true }]
+          : []),
+      ];
+    }),
   );
   readonly zoom = signal(1);
   readonly available = signal(900);
   readonly width = computed(() => Math.max(640, this.available() - 60) * this.zoom());
-  readonly snap = signal(4);
+  readonly snap = signal(2);
   readonly alignDraft = signal<AlignPreview | null>(null);
   readonly alignEnds = signal(false);
   readonly alignment = computed(() => {
@@ -498,19 +505,22 @@ export class PianoRoll implements OnDestroy {
       if (el && el !== source && el.scrollLeft !== source.scrollLeft)
         el.scrollLeft = source.scrollLeft;
   }
-  choosePedal(cc: number): void {
-    this.cancel();
-    this.selectedPedal.set(null);
-    this.pedalCc.set(cc);
+  pedalsHave(cc: number): boolean {
+    return this.pedals().some((p) => p.cc === cc);
+  }
+  showPedal(cc: number, show: boolean): void {
+    this.extraPedals.update((values) =>
+      show ? [...new Set([...values, cc])] : values.filter((v) => v !== cc),
+    );
   }
   pedalLabel(p: RollPedal): string {
-    return `${PEDALS.find((v) => v.cc === p.cc)?.name}, Wert ${p.value}, ${(p.start / 1000).toFixed(2)} s, Länge ${(p.duration / 1000).toFixed(2)} s`;
+    return `${PEDALS.find((v) => v.cc === p.cc)?.name}, ${p.value === 127 ? 'An' : 'Gespeicherter Zwischenwert ' + p.value} · CC${p.cc}, ${(p.start / 1000).toFixed(2)} s, Länge ${(p.duration / 1000).toFixed(2)} s`;
   }
   selectPedal(p: RollPedal): void {
     this.selected.set([]);
     this.selectedPedal.set(p.id);
   }
-  addPedal(event: MouseEvent): void {
+  addPedal(event: MouseEvent, cc: number): void {
     if (
       this.alignment() ||
       !this.editor.editable ||
@@ -519,7 +529,8 @@ export class PianoRoll implements OnDestroy {
       return;
     const r = (event.currentTarget as HTMLElement).getBoundingClientRect(),
       length = this.editor.track.length;
-    const n = this.editor.changePedal(this.pedalCc(), null, {
+    if (event.clientX - r.left < 60) return;
+    const n = this.editor.changePedal(cc, null, {
       start: this.clamp(
         this.quantize(((event.clientX - r.left - 60) / this.width()) * length),
         0,
@@ -564,6 +575,7 @@ export class PianoRoll implements OnDestroy {
       this.cancel();
       return;
     }
+    if (!this.pedalDraft() && Math.abs(event.clientX - d.x) < 3) return;
     const delta = ((event.clientX - d.x) / d.width) * d.length,
       p = { ...d.pedal };
     if (d.mode === 'start') {
@@ -590,9 +602,24 @@ export class PianoRoll implements OnDestroy {
     if (this.alignment()) return;
     const p = this.pedalSelection();
     if (!p) return;
+    const previousFocus = document.activeElement;
+    const restoreFocus = this.pedalViewport()?.nativeElement.contains(previousFocus);
     const changed = this.editor.changePedal(p.cc, p.id, patch);
     this.workspace.refresh();
     this.selectedPedal.set(changed?.id ?? null);
+    // Moving changes the interval id and replaces its button. Keep subsequent
+    // keyboard edits in the lane without stealing focus from another control.
+    if (restoreFocus)
+      requestAnimationFrame(() => {
+        if (document.activeElement !== document.body && document.activeElement !== previousFocus)
+          return;
+        const viewport = this.pedalViewport()?.nativeElement;
+        const id = this.selectedPedal();
+        const target = id
+          ? viewport?.querySelector<HTMLElement>(`[data-pedal-id="${CSS.escape(id)}"]`)
+          : viewport;
+        target?.focus({ preventScroll: true });
+      });
   }
   history(redo = false): void {
     this.cancel();
@@ -620,6 +647,7 @@ export class PianoRoll implements OnDestroy {
   }
   key(event: KeyboardEvent): void {
     event.stopPropagation();
+    if ((event.target as HTMLElement).closest('.roll-help')) return;
     if (event.key !== 'Escape' && (event.target as HTMLElement).closest('input,select,textarea'))
       return;
     if (event.key === 'Escape') {
@@ -670,7 +698,7 @@ export class PianoRoll implements OnDestroy {
       const direction = ['ArrowRight', 'ArrowUp'].includes(event.key) ? 1 : -1;
       this.patchPedal(
         ['ArrowUp', 'ArrowDown'].includes(event.key)
-          ? { value: this.clamp(pedal.value + direction, 0, 127) }
+          ? { value: event.key === 'ArrowUp' ? 127 : 0 }
           : event.shiftKey
             ? {
                 duration: this.clamp(

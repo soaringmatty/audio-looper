@@ -337,7 +337,7 @@ export class MidiRouter implements MidiSink {
       this.ignoredRelease.add(key);
       for (let i = 0; i < note.count; i++) {
         const off = [0x80 | (note.data[0] & 15), note.data[1], 0];
-        this.engine.input(off, now, note.track, now, 'cleanup');
+        this.engine.input(off, now, note.track);
         if (this.monitor) this.sendLive(note.track, off, now);
       }
     }
@@ -345,7 +345,7 @@ export class MidiRouter implements MidiSink {
       const off = [...pedal.data];
       off[2] = 0;
       this.ignoredRelease.add(key);
-      this.engine.input(off, now, pedal.track, now, 'cleanup');
+      this.engine.input(off, now, pedal.track);
       if (this.monitor) this.sendLive(pedal.track, off, now);
     }
   }

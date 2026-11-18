@@ -17,13 +17,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
-  padding: 12px 14px;
+  padding: 7px 10px;
   border-bottom: 1px solid var(--al-border);
 }
 .roll-tracks,
-.roll-tools {
+.roll-tools,
+.roll-tool-group {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -33,7 +34,6 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: 5px;
 }
 .roll-tools select {
   width: auto;
@@ -43,7 +43,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 10px 14px 0;
+  padding: 5px 10px;
   font-size: 14px;
   color: var(--al-muted);
 }
@@ -55,16 +55,62 @@
   margin-left: auto;
   color: var(--al-accent);
 }
-.roll-hint {
-  margin: 7px 14px 10px;
+.roll-lock {
+  margin: 0;
+  padding: 4px 10px;
   font-size: 13px;
+  color: var(--al-muted);
+}
+.roll-toolbar,
+.roll-info,
+.roll-lock,
+.align-panel {
+  flex-shrink: 0;
+}
+.roll-tool-group {
+  flex-wrap: nowrap;
+}
+.roll-tool-group + .roll-tool-group {
+  border-left: 1px solid var(--al-border);
+  padding-left: 12px;
+  margin-left: 6px;
+}
+:host .roll-help-button {
+  min-height: 24px;
+  padding: 1px 7px;
+  font-size: 12px;
+}
+.roll-help {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  box-sizing: border-box;
+  border: 1px solid var(--al-border);
+  border-radius: 10px;
+  padding: 16px;
+  background: var(--al-surface);
+  color: var(--al-text);
+  font-size: 14px;
+  box-shadow: 0 10px 40px #0009;
+}
+.roll-help p {
+  margin: 8px 0 14px;
   line-height: 1.5;
   color: var(--al-muted);
 }
-.roll-hint > span {
-  display: block;
-  color: #969ba4;
-  font-size: 12px;
+.roll-extra-pedals {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.roll-extra-pedals label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.roll-extra-pedals input {
+  width: 16px;
+  height: 16px;
 }
 .roll-viewport {
   flex: 1;
@@ -253,16 +299,6 @@
   text-align: center;
   color: var(--al-muted);
 }
-.pedal-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  padding: 8px 14px;
-  border-top: 1px solid var(--al-border);
-  color: var(--al-muted);
-  font-size: 14px;
-}
 .align-panel {
   display: flex;
   flex-wrap: wrap;
@@ -312,30 +348,16 @@
   pointer-events: none;
   z-index: 3;
 }
-.pedal-toolbar label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.pedal-toolbar select {
-  width: auto;
-}
-.pedal-toolbar input {
-  width: 76px;
-}
-.pedal-toolbar > span {
-  flex: 1 1 250px;
-  font-size: 12px;
-}
 .pedal-viewport {
-  flex: 0 0 96px;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--al-border);
   overflow-x: auto;
   overflow-y: hidden;
   position: relative;
   background: #18191c;
 }
 .pedal-canvas {
-  height: 76px;
+  height: 22px;
   position: relative;
   user-select: none;
 }
@@ -343,21 +365,20 @@
   position: sticky;
   left: 0;
   width: 60px;
-  height: 76px;
+  height: 22px;
+  box-sizing: border-box;
   z-index: 4;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 5px 10px;
+  padding: 3px 2px;
+  border-bottom: 1px solid var(--al-border);
   background: var(--al-raised);
-  font-size: 12px;
+  font-size: 10px;
   color: var(--al-muted);
 }
 .pedal-grid {
   position: absolute;
   left: 60px;
   top: 0;
-  height: 76px;
+  height: 22px;
   border-bottom: 1px solid var(--al-border);
   background-image: repeating-linear-gradient(
     90deg,
@@ -369,7 +390,8 @@
 }
 :host .pedal-step {
   position: absolute;
-  bottom: 0;
+  top: 2px;
+  height: 18px;
   min-width: 3px;
   min-height: 0;
   padding: 0;
@@ -388,24 +410,18 @@
   box-shadow: 0 0 7px #4fc9f670;
   z-index: 2;
 }
-.pedal-value {
-  pointer-events: none;
-  padding-inline: 9px;
-  font-size: 12px;
+:host .pedal-step.partial {
+  border-style: dashed;
+  background: #28637c80;
 }
 .pedal-viewport:focus-visible,
 :host .pedal-step:focus-visible {
   outline: 2px solid var(--al-accent);
   outline-offset: -2px;
 }
-@media (max-width: 1150px) {
-  .roll-panel {
-    height: clamp(620px, 80dvh, 780px);
-  }
-}
 @media (max-width: 720px) {
   .roll-toolbar {
-    padding: 10px;
+    padding: 6px;
   }
   .roll-tracks button {
     padding-inline: 9px;
@@ -414,12 +430,8 @@
     gap: 8px;
     flex-wrap: wrap;
   }
-  .roll-panel {
-    height: 840px;
-    min-height: 840px;
-  }
-  .roll-panel.align-open {
-    height: 1060px;
-    min-height: 1060px;
+  .roll-tool-group + .roll-tool-group {
+    padding-left: 8px;
+    margin-left: 0;
   }
 }

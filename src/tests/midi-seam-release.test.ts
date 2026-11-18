@@ -56,6 +56,7 @@ it('seam capture keeps physical note/pedal releases on their original owner with
     expect(router.snapshot().liveNotes).toHaveLength(0);
     expect(router.snapshot().livePedals).toHaveLength(0);
     expect(t.take.map((e) => e.data)).toEqual([
+      [176, 64, 127], // Held physical pedal is snapshotted into the new take.
       [176, 64, 80],
       [176, 64, 0],
     ]);
@@ -97,6 +98,23 @@ it('seam capture keeps physical note/pedal releases on their original owner with
   expect(held.start).toBe(900);
   expect(held.duration).toBeCloseTo(999.999, 3);
   expect(held.continuous).toBeFalsy();
+  // Strings-style C held from the beginning across first recording -> overdub.
+  const strings = fixture();
+  Object.assign(strings.t, {
+    state: 'recording',
+    start: 0,
+    takeStart: 0,
+    length: 0,
+    layers: undefined,
+    events: [],
+    program: 48,
+    autoEnd: 1000,
+    autoAction: 'dub',
+  });
+  strings.router.receive([144, 60, 100], 10);
+  strings.engine.tick(1000, 1030);
+  strings.router.receive([128, 60, 0], 1100);
+  expect(readRollNotes(strings.t)[0]).toMatchObject({ start: 10, duration: 999.999 });
 });
 
 it('seam notes remain finite through editor moves, overlapping additions, undo and aloop roundtrip', () => {

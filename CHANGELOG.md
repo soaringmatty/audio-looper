@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.16.3 — 2026-11-18
+
+- Simplify the piano roll: compact info header and on-demand help, grouped edit/grid/view tools and an eighth-note default grid. Replace the tall controller editor/value field with 22px Sustain/Sostenuto lanes; show optional Soft/Hold 2 lanes on request or when recorded. New pedal edits are on/off; preserve original intermediate values during time edits, shared history and coupled scrolling. Keep keyboard focus after pedal interval ids change.
+
+- Fit MIDI Live tracks to the available viewport height before scrolling; cap external-input cards at470px instead of stretching into the missing piano space. Add10px bottom padding and let Live/Editor shrink like the MIDI/Audio switch to preserve two session action rows on scaled laptop displays.
+
+- Seal completed Sustain/pedal takes at capture boundaries. Snapshot held physical controller values into each new recording/overdub take; later releases and cleanup affect only open capture, never a completed pedal cycle. Keep finite playback releases, intermediate values, existing MAX ownership and .aloop v1.
+- Keep note seam-release behavior unchanged, including a Strings-style note held from the start across recording→overdub. Remove the superseded post-seam pedal-owner rewrite/provenance workaround.
+
 ## v0.16.2 — 2026-11-18
 
 - Preserve recorded Sustain/pedal spans when a physical release arrives after the loop seam: split the finite wrap owner instead of inserting a modulo Off into the original pedal gesture. Synthetic input cleanup/Stop is distinguished from a played release and cannot retroactively cut the loop head. Keep the existing finite note-release fix and .aloop v1 compatibility.

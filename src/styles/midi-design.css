@@ -39,16 +39,18 @@
 .workspace.midi-workspace.with-piano {
   max-width: 1880px;
   height: min(100dvh, 1080px);
-  min-height: 860px;
+  min-height: 0;
   margin-inline: auto;
   padding: 14px 24px;
   gap: 14px;
-  grid-template-rows: 44px max-content minmax(382px, 1fr);
+  /* Preserve the controls' intrinsic minimum, not a whole-screen height floor.
+     Without a piano, don't turn its former space into an oversized dial area. */
+  grid-template-rows: 44px max-content minmax(386px, 470px);
   align-content: start;
   background: radial-gradient(ellipse at 50% 0, #ffffff06, transparent 65%);
 }
 .workspace.midi-workspace.with-piano {
-  grid-template-rows: 44px max-content minmax(382px, 1fr) var(--al-piano-height);
+  grid-template-rows: 44px max-content minmax(386px, 1fr) var(--al-piano-height);
 }
 .midi-workspace h1 {
   font-size: 32px;
@@ -420,7 +422,7 @@
 }
 .midi-workspace .tracks {
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  min-height: 382px;
+  min-height: 386px;
   max-height: none;
   gap: 14px;
 }
@@ -428,8 +430,8 @@
   display: grid;
   grid-template-rows: 46px minmax(166px, 1fr) 40px 58px 40px;
   gap: 6px;
-  padding: 0 14px 6px;
-  min-height: 382px;
+  padding: 0 14px 10px;
+  min-height: 386px;
   background: linear-gradient(150deg, #26282c, #1e2023 80%);
 }
 .midi-workspace .track.selected {
@@ -745,12 +747,10 @@
   }
   .workspace.midi-workspace,
   .workspace.midi-workspace.with-piano {
-    height: auto;
-    min-height: 100dvh;
-    grid-template-rows: 44px max-content minmax(382px, 1fr);
+    grid-template-rows: 44px max-content minmax(386px, 470px);
   }
   .workspace.midi-workspace.with-piano {
-    grid-template-rows: 44px max-content minmax(382px, 1fr) var(--al-piano-height);
+    grid-template-rows: 44px max-content minmax(386px, 1fr) var(--al-piano-height);
   }
   .midi-workspace .track .instrument-trigger {
     font-size: 14px;
@@ -759,6 +759,8 @@
 @media (max-width: 1150px) {
   .workspace.midi-workspace,
   .workspace.midi-workspace.with-piano {
+    height: auto;
+    min-height: 100dvh;
     grid-template-rows: 44px max-content 38px 400px;
   }
   .workspace.midi-workspace.with-piano {
@@ -977,13 +979,14 @@ body:has(.midi-workspace) {
   outline-offset: 3px;
 }
 
-.workspace-view-switch {
-  flex: 1 0 206px;
+.midi-workspace .workspace-view-switch {
+  flex: 1 1 152px;
+  min-width: 152px;
   max-width: 280px;
 }
 .midi-workspace .session-card .workspace-view-switch button {
   flex: 1 1 0;
-  min-width: 96px;
+  min-width: 72px;
   font-size: 16px;
   padding: 7px 11px;
 }
@@ -995,12 +998,12 @@ body:has(.midi-workspace) {
     0 0 7px var(--al-active-glow);
 }
 .workspace.midi-workspace.editor-view {
-  grid-template-rows: 44px max-content minmax(440px, 1fr);
+  grid-template-rows: 44px max-content minmax(340px, 1fr);
 }
 @media (max-width: 1150px) {
   .workspace.midi-workspace.editor-view {
-    height: auto;
-    grid-template-rows: auto max-content minmax(500px, 1fr);
+    height: min(100dvh, 1080px);
+    grid-template-rows: auto max-content minmax(340px, 1fr);
   }
 }
 @media (max-width: 560px) {
