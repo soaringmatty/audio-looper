@@ -349,19 +349,23 @@ export class MidiRouter implements MidiSink {
       if (this.monitor) this.sendLive(pedal.track, off, now);
     }
   }
-  closeLiveTake(track: number, at: number): void {
+  closeLiveTake(track: number, at: number, preserveInput = false): void {
     // Never call input() recursively from inside engine.tick().
     for (const [key, note] of this.liveNotes)
       if (note.track === track) {
-        this.liveNotes.delete(key);
-        this.ignoredRelease.add(key);
+        if (!preserveInput) {
+          this.liveNotes.delete(key);
+          this.ignoredRelease.add(key);
+        }
         if (this.monitor)
           for (let i = 0; i < note.count; i++) this.sendLive(track, [0x80, note.data[1], 0], at);
       }
     for (const [key, pedal] of this.livePedals)
       if (pedal.track === track) {
-        this.livePedals.delete(key);
-        this.ignoredRelease.add(key);
+        if (!preserveInput) {
+          this.livePedals.delete(key);
+          this.ignoredRelease.add(key);
+        }
         if (this.monitor) this.sendLive(track, [0xb0, pedal.data[1], 0], at);
       }
   }

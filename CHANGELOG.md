@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.16.1 — 2026-11-18
+
+- Keep physical note/pedal release routing across recording/overdub seams and complete the original capture owner, rather than creating an orphan release in the next take. Intermediate pedal updates receive matching releases; long notes remain finite within the one-cycle representation. Do not reset unrelated voices or reinterpret ambiguous legacy holds.
+- Return focus to the MIDI performance surface on mouse release after changing BPM with the native number spinner; preserve text entry and keyboard stepping.
+
 ## v0.16.0 — 2026-11-18
 
 - Add an integrated MIDI piano-roll editor for the existing five-track session: notes, resize, snap, zoom, scrolling and per-track undo/redo. Live/Editor switches views without changing transport; edits require pause and completed captures.

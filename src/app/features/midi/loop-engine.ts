@@ -44,7 +44,7 @@ export interface MidiSink {
   reset(at: number): void;
   resetTrack?(track: number, at: number): void;
   deleteTrack?(track: number, at: number): void;
-  closeLiveTake?(track: number, at: number): void;
+  closeLiveTake?(track: number, at: number, preserveInput?: boolean): void;
   beginTrack?(track: number, at: number): void;
   cancelScheduled?(track: number, from: number, now: number): void;
   resumeTrack?(track: number, at: number, includeLive?: boolean): void;
@@ -126,6 +126,8 @@ export class LoopEngine {
     const at = this.pausedAt ?? now;
     this.prepared.clear();
     for (const t of this.tracks) {
+      for (const capture of [...this.seamCaptures[t.id]])
+        this.releaseSeam(t, [capture.marker.data[0], capture.attack[1], 0], at);
       if (t.state === 'overdub') {
         this.endOverdub(t, at);
         this.finishReleaseTail(t, at, true);
@@ -166,6 +168,96 @@ export class LoopEngine {
   );
   clearInputHistory(): void {
     for (const notes of this.heldInput) notes.clear();
+  }
+  // A release after a seam still belongs to the layer that captured its attack.
+  private seamCaptures = Array.from(
+    { length: 5 },
+    () =>
+      [] as {
+        layer: MidiEvent[];
+        marker: MidiEvent;
+        attack: number[];
+        started: number;
+      }[],
+  );
+  private rememberSeam(t: Track, layer: MidiEvent[]): void {
+    for (const marker of layer.filter((e) => e.boundary)) {
+      const op = marker.data[0] & 0xf0;
+      const attack = layer
+        .filter(
+          (e) =>
+            !e.boundary &&
+            (e.data[0] & 15) === (marker.data[0] & 15) &&
+            e.data[1] === marker.data[1] &&
+            (op === 0x80
+              ? (e.data[0] & 0xf0) === 0x90 && e.data[2] > 0
+              : (e.data[0] & 0xf0) === 0xb0),
+        )
+        .at(-1);
+      if (attack)
+        this.seamCaptures[t.id].push({
+          layer,
+          marker,
+          attack: [...attack.data],
+          started: t.takeStart + attack.at,
+        });
+    }
+  }
+  private releaseSeam(t: Track, data: number[], now: number, eventAt = now): boolean {
+    const op = data[0] & 0xf0;
+    if (
+      !(
+        op === 0x80 ||
+        (op === 0x90 && !data[2]) ||
+        (op === 0xb0 && !data[2] && PEDAL_CONTROLLERS.includes(data[1]))
+      )
+    )
+      return false;
+    const captures = this.seamCaptures[t.id].filter((c) => t.layers?.includes(c.layer));
+    this.seamCaptures[t.id] = captures;
+    const matches = captures.filter(
+      (c) =>
+        (c.attack[0] & 15) === (data[0] & 15) &&
+        c.attack[1] === data[1] &&
+        ((c.attack[0] & 0xf0) === 0xb0) === (op === 0xb0),
+    );
+    if (!matches.length) return false;
+    const phase = (((eventAt - t.start) % t.length) + t.length) % t.length;
+    const audiblePhase = (((now - t.start) % t.length) + t.length) % t.length;
+    const before = this.noteState(t, audiblePhase + EPS);
+    for (const capture of op === 0xb0 ? matches : matches.slice(0, 1)) {
+      const { layer, marker, attack } = capture;
+      // Replace the safety marker with a real periodic release on the same owner.
+      const lastOn = layer
+        .filter(
+          (e) => e !== marker && !e.boundary && e.data[0] === attack[0] && e.data[1] === attack[1],
+        )
+        .at(-1);
+      // The periodic editor supports at most one cycle per note. A key held for
+      // several cycles must not collapse to a short modulo-duration on release.
+      const releaseAt =
+        op !== 0xb0 && lastOn && eventAt - capture.started >= t.length
+          ? (lastOn.at + t.length - EPS) % t.length
+          : phase;
+      layer.splice(layer.indexOf(marker), 1);
+      if (lastOn && lastOn.at >= releaseAt) layer.push({ at: -1, data: [...attack] });
+      layer.push({ at: releaseAt, data: [...data] });
+      layer.sort((a, b) => a.at - b.at);
+      this.seamCaptures[t.id] = this.seamCaptures[t.id].filter((c) => c !== capture);
+    }
+    Object.assign(t, compileLoop(t.layers!));
+    this.sink.cancelScheduled?.(t.id, now, now);
+    this.prepared.delete(t.id);
+    t.cursor = now;
+    const after = this.noteState(t, audiblePhase + EPS);
+    if (!t.muted) {
+      for (const [pitch] of before.notes)
+        if (!after.notes.has(pitch)) this.sink.send(t.id, [0x80, pitch, 0], now);
+      for (const [key, value] of after.controls)
+        if (JSON.stringify(value) !== JSON.stringify(before.controls.get(key)))
+          this.sink.send(t.id, value, now);
+    }
+    return true;
   }
   select(id: number, now = performance.now()): void {
     if (id === this.selected || !this.tracks[id]) return;
@@ -384,12 +476,13 @@ export class LoopEngine {
     const prepared = this.prepared.get(t.id);
     t.length = end - t.start;
     t.layers = [this.closeTake(t, t.length, true)];
+    this.rememberSeam(t, t.layers[0]);
     Object.assign(t, compileLoop(t.layers));
     t.take = [];
     if (!this.reference) this.reference = t.length;
     t.autoEnd = undefined;
     t.plannedLength = undefined;
-    this.sink.closeLiveTake?.(t.id, now);
+    this.sink.closeLiveTake?.(t.id, now, true);
     this.heldInput[t.id].clear();
     t.pending = undefined;
     t.state = action === 'dub' ? 'overdub' : 'playing';
@@ -412,6 +505,7 @@ export class LoopEngine {
     )
       return;
     const t = this.tracks[track];
+    const seamRelease = this.releaseSeam(t, data, now, eventAt);
     const key = `${data[0] & 15}:${data[1]}`;
     if (t.releaseTail) {
       const tail = t.releaseTail;
@@ -439,7 +533,11 @@ export class LoopEngine {
     else if ((op === 0x80 || op === 0x90) && held) {
       if (--held.count <= 0) this.heldInput[t.id].delete(key);
     }
-    if (t.state === 'recording' || t.state === 'overdub')
+    // Intermediate pedal values in the new take need their own matching Off as
+    // well; otherwise MAX merging could leave that newer controller owner down.
+    const closeCurrentPedal =
+      op === 0xb0 && t.take.some((e) => e.data[0] === data[0] && e.data[1] === data[1]);
+    if ((!seamRelease || closeCurrentPedal) && (t.state === 'recording' || t.state === 'overdub'))
       t.take.push({ at: Math.max(0, eventAt - t.takeStart), data: [...data] });
     const prepared = this.prepared.get(t.id);
     if (prepared && now < prepared.at) this.prepareBoundary(t, now, prepared.cursor);
@@ -524,7 +622,7 @@ export class LoopEngine {
       }
       // These events were inserted behind the playback cursor: close the LIVE
       // part now rather than waiting a full loop for synthetic seam releases.
-      this.sink.closeLiveTake?.(t.id, end);
+      this.sink.closeLiveTake?.(t.id, end, true);
       this.heldInput[t.id].clear();
     }
     t.take = rest;
@@ -579,6 +677,7 @@ export class LoopEngine {
   private addTake(t: Track, take: MidiEvent[]): void {
     t.layers ??= [t.events];
     t.layers.push(take);
+    this.rememberSeam(t, take);
     Object.assign(t, compileLoop(t.layers));
   }
   invalidate(now: number): void {
@@ -646,6 +745,7 @@ export class LoopEngine {
     if (this.sink.deleteTrack) this.sink.deleteTrack(id, now);
     else this.resetTrack(id, now);
     this.heldInput[id].clear();
+    this.seamCaptures[id] = [];
     const t = this.tracks[id];
     Object.assign(t, {
       state: 'empty',

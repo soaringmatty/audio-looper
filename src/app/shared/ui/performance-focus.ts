@@ -22,8 +22,12 @@ export function focusPerformance(): void {
 export class PerformanceFocus {
   private readonly root = inject<ElementRef<HTMLElement>>(ElementRef);
   private pointerControl?: HTMLElement;
+  private pointerValue?: string;
   pointer(event: PointerEvent): void {
     this.pointerControl = this.control(event) ?? undefined;
+    this.pointerValue = this.pointerControl?.matches('input[data-return-spinner-focus]')
+      ? (this.pointerControl as HTMLInputElement).value
+      : undefined;
   }
   private control(event: Event): HTMLElement | null {
     const target = event.target as HTMLElement;
@@ -49,11 +53,20 @@ export class PerformanceFocus {
       focusPerformance();
   }
   pointerup(event: PointerEvent): void {
-    if (this.control(event)?.matches('input[type=range]')) focusPerformance();
+    const el = this.control(event);
+    if (
+      el?.matches('input[type=range]') ||
+      (el === this.pointerControl &&
+        this.pointerValue !== undefined &&
+        (el as HTMLInputElement).value !== this.pointerValue)
+    )
+      focusPerformance();
+    this.pointerValue = undefined;
   }
   key(event: KeyboardEvent): void {
     const el = this.control(event);
     this.pointerControl = undefined;
+    this.pointerValue = undefined;
     if (
       (event.key === 'Enter' || event.code === 'NumpadEnter') &&
       el?.matches('input:not([type=range]):not([type=checkbox]):not([type=radio])')

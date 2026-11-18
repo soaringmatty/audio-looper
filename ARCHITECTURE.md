@@ -15,6 +15,9 @@ Dateien folgen der aktuellen Angular-Namenskonvention ohne `.component.ts`-/`.se
 
 ## State und Lifecycle
 
+- `LoopEngine.seamCaptures` hält nur während der aktuellen Aufnahme die Zuordnung von Naht-Sicherheitsmarkern zum ursprünglichen Layer/Kanal/Anschlag. `closeLiveTake(..., true)` beendet die übergebenen Live-Stimmen, erhält aber das Routing des tatsächlichen Loslassens. Ein späteres Note-/Pedal-Off ersetzt den Marker im ursprünglichen Owner durch einen expliziten zyklischen Verlauf, bei Bedarf mit Seed. Mehrzyklisch gehaltene Noten sind auf eine endliche Loop-Länge begrenzt. Recompile und Queue-Korrektur betreffen nur die Spur; keine globalen Resets oder Neuanschläge unveränderter Stimmen. Zwischenwerte eines Pedals im aktuellen Take bekommen ebenfalls ihr Off. Laufzeitzuordnungen werden nicht gespeichert und nicht für mehrdeutige alte Seed-only-Dateien erfunden; .aloop v1 und MAX-/Noten-Owner-Regeln bleiben erhalten.
+- `PerformanceFocus` merkt beim Pointerdown den Wert eines ausdrücklich markierten BPM-Number-Inputs. Erst eine Wertänderung während der Mausinteraktion gibt bei Pointerup den Performance-Fokus zurück; Textklick und Tastaturbearbeitung bleiben im Feld. Das MIDI-Tempo ist markiert, Audio-Controls bleiben unverändert.
+
 - Beide Workspace-Services werden **am jeweiligen Feature** bereitgestellt. Dadurch teilen dessen Komponenten dieselbe Session; Angular ruft beim Abbau `ngOnDestroy` auf. Worker, Animation, MIDI-/Browser-Listener und Audio-Ressourcen werden dort freigegeben.
 - Keyboard-Events laufen über deklarative `host`-Bindings der Feature-Komponenten. Damit entfernt Angular sie zusammen mit der Ansicht. Bestehende Shortcut-, Wiederholungs- und Dialogregeln bleiben erhalten.
 - Die Echtzeit-Engines bleiben bewusst normale, mutable TypeScript-/JavaScript-Objekte. MIDI wird weiterhin über absolute Zeitpunkte und Worker-Wecksignale geplant, PCM im AudioWorklet. Signals übernehmen **keine musikalische Zeitplanung**.
