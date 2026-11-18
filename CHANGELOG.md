@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.16.0 — 2026-11-18
+
+- Add an integrated MIDI piano-roll editor for the existing five-track session: notes, resize, snap, zoom, scrolling and per-track undo/redo. Live/Editor switches views without changing transport; edits require pause and completed captures.
+- Add effective Sustain/Sostenuto/Soft/Hold 2 pedal lanes with exact 0–127 values, interval editing and shared undo. Changes cover all contributing overdub layers; existing .aloop v1 remains compatible.
+- Add exact nearest-grid Auto-Align with optional note ends, preview, selected-only or whole-track scope and one undo. Ambiguous targets, invalid lengths, same-pitch conflicts, continuous holds and pedal-boundary crossings are skipped with reasons; no musical-intent recognition or automatic pedal alignment.
+- Add marquee/Shift multiselect, shared time/pitch movement, keyboard movement and group deletion while preserving relative offsets and durations. No group resize or live-playback editing.
+- Give finite editor notes a real release, including full-cycle notes at the loop seam. Preserve untouched intentional recorded holds; this fixes one reproduced hang, not every possible note-hang cause.
+- Focused data, real browser interaction and loaded Synth/AudioWorklet checks are recorded in VERIFICATION.md. No external MIDI/hardware acceptance or broad regression; audio workspace and infrastructure remain unchanged.
+
 ## v0.15.1 — 2026-11-18
 
 - Restore MIDI performance focus after settings teardown, once the workspace is no longer inert; retain modal focus when switching to calibration.

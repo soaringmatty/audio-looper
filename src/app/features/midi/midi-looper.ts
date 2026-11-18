@@ -9,6 +9,7 @@ import { MidiTrack } from './midi-track';
 import { MidiPiano } from './midi-piano';
 import { MidiSettings } from './midi-settings';
 import { MidiTimingDialog } from './midi-timing-dialog';
+import { PianoRoll } from './piano-roll';
 @Component({
   selector: 'app-midi-looper',
   imports: [
@@ -21,6 +22,7 @@ import { MidiTimingDialog } from './midi-timing-dialog';
     MidiPiano,
     MidiSettings,
     MidiTimingDialog,
+    PianoRoll,
   ],
   providers: [MidiWorkspace],
   host: {

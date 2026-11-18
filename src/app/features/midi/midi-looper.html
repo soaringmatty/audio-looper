@@ -4,7 +4,8 @@
   data-performance
   tabindex="-1"
   class="workspace midi-workspace"
-  [class.with-piano]="vm.pianoVisible"
+  [class.with-piano]="vm.pianoVisible && vm.workspaceView === 'live'"
+  [class.editor-view]="vm.workspaceView === 'editor'"
   [attr.inert]="vm.settingsOpen || vm.resetOpen || vm.pendingProject ? '' : null"
 >
   @if (vm.performanceWarning) {
@@ -83,6 +84,26 @@
             /></svg
           >Laden
         </button>
+        <div
+          class="workspace-view-switch mode-switch segmented"
+          role="group"
+          aria-label="MIDI-Arbeitsansicht"
+        >
+          <button
+            [class.active]="vm.workspaceView === 'live'"
+            [attr.aria-pressed]="vm.workspaceView === 'live'"
+            (click)="vm.setWorkspaceView('live')"
+          >
+            Live
+          </button>
+          <button
+            [class.active]="vm.workspaceView === 'editor'"
+            [attr.aria-pressed]="vm.workspaceView === 'editor'"
+            (click)="vm.setWorkspaceView('editor')"
+          >
+            Editor
+          </button>
+        </div>
         <input
           #projectFile
           type="file"
@@ -187,32 +208,36 @@
       </div>
     </section>
   </div>
-  <div class="mobile-selector" aria-label="Spur wählen">
-    @for (t of vm.engine.tracks; track t.id) {
-      <button
-        [class.active]="vm.engine.selected === t.id"
-        [attr.aria-pressed]="vm.engine.selected === t.id"
-        (click)="vm.select(t.id); workspace.refresh()"
-      >
-        {{ t.id + 1 }}
-      </button>
+  @if (vm.workspaceView === 'live') {
+    <div class="mobile-selector" aria-label="Spur wählen">
+      @for (t of vm.engine.tracks; track t.id) {
+        <button
+          [class.active]="vm.engine.selected === t.id"
+          [attr.aria-pressed]="vm.engine.selected === t.id"
+          (click)="vm.select(t.id); workspace.refresh()"
+        >
+          {{ t.id + 1 }}
+        </button>
+      }
+    </div>
+    <section class="tracks" aria-label="Loop-Spuren">
+      @for (t of vm.engine.tracks; track t.id) {
+        <article
+          class="track panel"
+          [class.selected]="vm.engine.selected === t.id"
+          [class.muted]="t.muted"
+          [class.mobile-hidden]="vm.engine.selected !== t.id"
+          (pointerdown)="vm.select(t.id); workspace.refresh()"
+          app-midi-track
+          [track]="t"
+        ></article>
+      }
+    </section>
+    @if (vm.pianoVisible) {
+      <section class="piano-dock panel" aria-label="Virtuelles Piano" app-midi-piano></section>
     }
-  </div>
-  <section class="tracks" aria-label="Loop-Spuren">
-    @for (t of vm.engine.tracks; track t.id) {
-      <article
-        class="track panel"
-        [class.selected]="vm.engine.selected === t.id"
-        [class.muted]="t.muted"
-        [class.mobile-hidden]="vm.engine.selected !== t.id"
-        (pointerdown)="vm.select(t.id); workspace.refresh()"
-        app-midi-track
-        [track]="t"
-      ></article>
-    }
-  </section>
-  @if (vm.pianoVisible) {
-    <section class="piano-dock panel" aria-label="Virtuelles Piano" app-midi-piano></section>
+  } @else {
+    <piano-roll />
   }
 </main>
 

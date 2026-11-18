@@ -1,0 +1,323 @@
+@let vm = workspace.view();
+@let track = editor.track;
+<section
+  class="roll-panel"
+  [class.align-open]="!!alignment()"
+  aria-label="Piano Roll"
+  data-keep-focus
+  (keydown)="key($event)"
+>
+  <div class="roll-toolbar">
+    <div class="roll-tracks" aria-label="Spur bearbeiten">
+      @for (t of vm.engine.tracks; track t.id) {
+        <button
+          [class.active]="vm.engine.selected === t.id"
+          [attr.aria-pressed]="vm.engine.selected === t.id"
+          (click)="chooseTrack(t.id)"
+          [attr.title]="vm.instrumentName(t.program)"
+        >
+          Spur {{ t.id + 1 }}
+        </button>
+      }
+    </div>
+    <div class="roll-tools">
+      <button
+        aria-label="Rückgängig"
+        title="Rückgängig (Strg+Z)"
+        [disabled]="!editor.canUndo"
+        (click)="history()"
+      >
+        ↶
+      </button>
+      <button
+        aria-label="Wiederholen"
+        title="Wiederholen (Strg+Umschalt+Z)"
+        [disabled]="!editor.canRedo"
+        (click)="history(true)"
+      >
+        ↷
+      </button>
+      <button
+        aria-label="Auswahl löschen"
+        [disabled]="!editor.editable || !!alignment() || (!selected().length && !selectedPedal())"
+        (click)="remove()"
+      >
+        {{ selected().length > 1 ? selected().length + ' Noten löschen' : 'Auswahl löschen' }}
+      </button>
+      <label
+        >Raster
+        <select
+          aria-label="Notenraster"
+          [value]="snap()"
+          (change)="snap.set(+$any($event.target).value)"
+        >
+          <option value="0">Aus</option>
+          <option value="1">1/4</option>
+          <option value="2">1/8</option>
+          <option value="4">1/16</option>
+          <option value="8">1/32</option>
+        </select></label
+      >
+      <label
+        >Zoom
+        <select
+          aria-label="Piano-Roll-Zoom"
+          [value]="zoom()"
+          (change)="zoom.set(+$any($event.target).value)"
+        >
+          <option value="1">100 %</option>
+          <option value="2">200 %</option>
+          <option value="4">400 %</option>
+          <option value="8">800 %</option>
+        </select></label
+      >
+      <button (click)="center()" title="Noten im sichtbaren Bereich zentrieren">Zentrieren</button>
+      <button (click)="previewAlign()" [disabled]="!canAlign()" [attr.title]="alignReason()">
+        Auto-Align
+      </button>
+    </div>
+  </div>
+  <div class="roll-info">
+    <strong>{{ vm.instrumentName(track.program) }}</strong>
+    <span
+      >{{ notes().length }} Noten · {{ vm.duration(track) }}
+      {{ track.muted ? '· STUMM' : '' }}</span
+    >
+    @if (selected().length) {
+      <span class="selection-count" role="status">{{ selected().length }} ausgewählt</span>
+    }
+    <span class="roll-state">{{ editor.editable ? 'Bearbeiten' : 'Ansicht' }}</span>
+  </div>
+  <p class="roll-hint" id="roll-hint">
+    {{ editor.reason }}
+    <span
+      >Notenbalken zeigen die gespielte Länge. Pedal-Lane: wirksamer Verlauf aller Takes; Löschen
+      setzt den Bereich auf 0.</span
+    >
+  </p>
+  @if (alignment(); as align) {
+    <div class="align-panel" role="region" aria-label="Auto-Align-Vorschau">
+      <div class="align-summary" role="status">
+        <strong
+          >Vorschau {{ align.scopeIds ? 'Auswahl' : 'Spur' }}: {{ align.changed }} geändert ·
+          {{ align.unchanged }} unverändert</strong
+        >
+        <span
+          >Exakt zum nächstgelegenen Rasterpunkt · Amber: Vorschlag · gestrichelt: Original.</span
+        >
+        @if (alignReasons()) {
+          <span class="align-conflicts">Ausgelassen: {{ alignReasons() }}</span>
+        }
+      </div>
+      <label
+        ><input
+          type="checkbox"
+          [checked]="alignEnds()"
+          (change)="setAlignEnds($any($event.target).checked)"
+        />
+        Notenenden mitkorrigieren</label
+      >
+      <button (click)="applyAlign()" [disabled]="!align.changed">Übernehmen</button>
+      <button (click)="alignDraft.set(null)">Abbrechen</button>
+    </div>
+  } @else if (!canAlign() && track.length && editor.editable) {
+    <p class="align-reason">{{ alignReason() }}</p>
+  }
+  @if (track.length) {
+    <div
+      #viewport
+      class="roll-viewport"
+      (scroll)="scroll($any($event.target))"
+      tabindex="0"
+      aria-label="Notenfläche"
+      aria-describedby="roll-hint"
+    >
+      <div
+        class="roll-canvas"
+        [style.width.px]="width() + 60"
+        [style.height.px]="128 * rowHeight + 28"
+        (dblclick)="add($event)"
+        (pointerdown)="beginArea($event)"
+        (pointermove)="moveArea($event)"
+        (pointerup)="endArea($event)"
+        (pointercancel)="cancel()"
+        (lostpointercapture)="cancel()"
+      >
+        <div class="roll-ruler" [style.width.px]="width() + 60">
+          <span class="roll-corner">Beat</span>
+          @for (tick of ticks(); track tick.at) {
+            <span class="roll-tick" [style.left.px]="60 + (tick.at / track.length) * width()">{{
+              tick.label
+            }}</span>
+          }
+        </div>
+        <div
+          class="roll-rows"
+          [style.width.px]="width()"
+          [style.--beat-width]="(60000 / vm.engine.bpm / track.length) * width() + 'px'"
+        >
+          @for (pitch of pitches; track pitch) {
+            <div
+              class="roll-row"
+              [class.black]="black(pitch)"
+              [class.octave]="pitch % 12 === 0"
+            ></div>
+          }
+        </div>
+        <div class="roll-notes" [style.width.px]="width()">
+          @for (part of segments(); track part.note.id + ':' + part.part) {
+            <button
+              class="roll-note"
+              [class.selected]="selectionSet().has(part.note.id)"
+              [attr.aria-pressed]="selectionSet().has(part.note.id)"
+              [class.wrapped]="part.part === 1"
+              [class.align-preview]="part.preview"
+              [attr.data-note-id]="part.note.id"
+              [attr.data-part]="part.part"
+              [attr.aria-label]="label(part.note)"
+              [attr.title]="label(part.note)"
+              [style.left.px]="(part.start / track.length) * width()"
+              [style.width.px]="(part.duration / track.length) * width()"
+              [style.top.px]="(127 - part.note.pitch) * rowHeight + 2"
+              (focus)="focusNote(part.note)"
+              (pointerdown)="begin($event, part.note)"
+              (pointermove)="move($event)"
+              (pointerup)="end($event)"
+              (pointercancel)="cancel()"
+              (lostpointercapture)="cancel()"
+              (click)="$event.stopPropagation()"
+              (dblclick)="$event.stopPropagation()"
+            >
+              @if (part.part === 0 && selected().length <= 1) {
+                <span class="roll-edge start" data-edge="start" aria-hidden="true"></span>
+              }
+              <span class="roll-note-label">{{ name(part.note.pitch) }}</span>
+              @if (part.last && selected().length <= 1) {
+                <span class="roll-edge end" data-edge="end" aria-hidden="true"></span>
+              }
+            </button>
+          }
+          @for (original of alignOriginals(); track original.note.id + ':' + original.part) {
+            <span
+              class="roll-original"
+              aria-hidden="true"
+              [style.left.px]="(original.start / track.length) * width()"
+              [style.width.px]="(original.duration / track.length) * width()"
+              [style.top.px]="(127 - original.note.pitch) * rowHeight + 2"
+            ></span>
+          }
+          <div
+            class="roll-playhead"
+            [style.left.px]="vm.engine.phase(track, vm.clock) * width()"
+            aria-hidden="true"
+          ></div>
+        </div>
+        @if (marquee(); as box) {
+          <div
+            class="roll-marquee"
+            aria-hidden="true"
+            [style.left.px]="box.x"
+            [style.top.px]="box.y"
+            [style.width.px]="box.width"
+            [style.height.px]="box.height"
+          ></div>
+        }
+        <div class="roll-keys">
+          @for (pitch of pitches; track pitch) {
+            <div class="roll-key" [class.black]="black(pitch)" [class.octave]="pitch % 12 === 0">
+              {{ name(pitch) }}
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+    <div class="pedal-toolbar">
+      <label
+        >Pedal
+        <select
+          aria-label="Pedal-Lane"
+          [value]="pedalCc()"
+          (change)="choosePedal(+$any($event.target).value)"
+        >
+          @for (p of pedalTypes; track p.cc) {
+            <option [value]="p.cc">{{ p.name }} · CC{{ p.cc }}</option>
+          }
+        </select>
+      </label>
+      <label
+        >Wert
+        <input
+          type="number"
+          aria-label="Pedalwert"
+          min="0"
+          max="127"
+          step="1"
+          [disabled]="!editor.editable || !!alignment() || !pedalSelection()"
+          [value]="pedalSelection()?.value ?? 127"
+          (change)="patchPedal({ value: +$any($event.target).value })"
+        />
+      </label>
+      <span>{{
+        pedalCc() === 67 && vm.midi.softPedalControl
+          ? 'CC67 steuert live den Loop; dabei fehlen Klang-Aufnahmedaten.'
+          : 'Doppelklick: hinzufügen · Ziehen/Kanten: Zeit · ↑/↓: Wert'
+      }}</span>
+    </div>
+    <div
+      #pedalViewport
+      class="pedal-viewport"
+      (scroll)="scroll($any($event.target))"
+      tabindex="0"
+      aria-label="Pedalfläche"
+    >
+      <div class="pedal-canvas" [style.width.px]="width() + 60" (dblclick)="addPedal($event)">
+        <div class="pedal-label" aria-hidden="true"><span>127</span><span>0</span></div>
+        <div
+          class="pedal-grid"
+          [style.width.px]="width()"
+          [style.--beat-width]="(60000 / vm.engine.bpm / track.length) * width() + 'px'"
+        >
+          @for (part of pedalSegments(); track part.pedal.id + ':' + part.part) {
+            <button
+              class="pedal-step"
+              [class.selected]="selectedPedal() === part.pedal.id"
+              [attr.data-pedal-id]="part.pedal.id"
+              [attr.data-part]="part.part"
+              [attr.aria-label]="pedalLabel(part.pedal)"
+              [attr.title]="pedalLabel(part.pedal)"
+              [style.left.px]="(part.start / track.length) * width()"
+              [style.width.px]="(part.duration / track.length) * width()"
+              [style.height.px]="12 + (part.pedal.value / 127) * 50"
+              (focus)="selectPedal(part.pedal)"
+              (pointerdown)="beginPedal($event, part.pedal)"
+              (pointermove)="movePedal($event)"
+              (pointerup)="endPedal($event)"
+              (pointercancel)="cancel()"
+              (lostpointercapture)="cancel()"
+              (click)="$event.stopPropagation()"
+              (dblclick)="$event.stopPropagation()"
+            >
+              @if (part.part === 0) {
+                <span class="roll-edge start" data-edge="start" aria-hidden="true"></span>
+              }
+              <span class="pedal-value">{{ part.pedal.value }}</span>
+              @if (part.last) {
+                <span class="roll-edge end" data-edge="end" aria-hidden="true"></span>
+              }
+            </button>
+          }
+          <div
+            class="roll-playhead"
+            [style.left.px]="vm.engine.phase(track, vm.clock) * width()"
+            aria-hidden="true"
+          ></div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="roll-empty">
+      <strong>Noch kein Loop auf Spur {{ track.id + 1 }}</strong
+      ><span>In der Live-Ansicht aufnehmen und anschließend hier bearbeiten.</span>
+    </div>
+  }
+</section>

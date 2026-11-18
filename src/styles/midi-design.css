@@ -374,8 +374,8 @@
   width: 38px;
   padding: 7px;
 }
-.midi-workspace .session-files button {
-  flex: 1 1 0;
+.midi-workspace .session-files > button {
+  flex: 0 0 auto;
 }
 .midi-workspace .session-transport button:not(.transport-icon) {
   flex: 1 1 auto;
@@ -407,6 +407,7 @@
 .midi-workspace .mode-switch button {
   min-width: 72px;
   font-size: 16px;
+  padding: 7px 11px;
 }
 .midi-workspace .mode-switch {
   gap: 4px;
@@ -596,7 +597,7 @@
 .midi-workspace .track .track-actions {
   grid-row: 5;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
 }
 .midi-workspace .track .track-actions button {
@@ -606,9 +607,10 @@
   padding: 7px 9px;
 }
 .midi-workspace .track .track-actions button.delete {
-  font-size: 0;
-  gap: 0;
   color: #c6a7ad;
+}
+.midi-workspace .track .mute-button.unmute-queued .ui-icon {
+  display: none;
 }
 .midi-workspace .track .track-actions button.delete:hover:not(:disabled) {
   color: var(--al-danger);
@@ -973,4 +975,37 @@ body:has(.midi-workspace) {
 .midi-workspace .piano-keys.keyboard-navigation:focus-visible {
   outline: 2px solid var(--al-accent);
   outline-offset: 3px;
+}
+
+.workspace-view-switch {
+  flex: 1 0 206px;
+  max-width: 280px;
+}
+.midi-workspace .session-card .workspace-view-switch button {
+  flex: 1 1 0;
+  min-width: 96px;
+  font-size: 16px;
+  padding: 7px 11px;
+}
+.midi-workspace .roll-tracks .active {
+  background: linear-gradient(var(--al-active-top), var(--al-active-bottom));
+  border-color: var(--al-active-border);
+  box-shadow:
+    inset 0 0 0 1px var(--al-active-inner),
+    0 0 7px var(--al-active-glow);
+}
+.workspace.midi-workspace.editor-view {
+  grid-template-rows: 44px max-content minmax(440px, 1fr);
+}
+@media (max-width: 1150px) {
+  .workspace.midi-workspace.editor-view {
+    height: auto;
+    grid-template-rows: auto max-content minmax(500px, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .midi-workspace .workspace-view-switch {
+    flex: 1 0 100%;
+    max-width: none;
+  }
 }

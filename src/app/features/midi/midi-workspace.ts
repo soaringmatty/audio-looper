@@ -4,6 +4,7 @@ import { focusPerformance } from '../../shared/ui/performance-focus';
 import { Injectable, OnDestroy, signal, computed } from '@angular/core';
 
 import { LoopEngine, Track } from './loop-engine';
+import { MidiEditor } from './midi-editor';
 import {
   exportMidiProject,
   parseMidiProject,
@@ -60,6 +61,13 @@ export class MidiWorkspace implements OnDestroy {
 
   midi = new MidiRouter();
   engine = new LoopEngine(this.midi);
+  readonly editor = new MidiEditor(this.engine);
+  workspaceView: 'live' | 'editor' = 'live';
+  setWorkspaceView(view: 'live' | 'editor'): void {
+    // Pure view switch: never select/restart/finish/pause the engine here.
+    this.workspaceView = view;
+    this.refresh();
+  }
   metro = new Metronome(() => this.midi.browser.context);
   piano = new PianoController((data) => this.midi.receive(data));
   get keys() {
@@ -598,6 +606,25 @@ export class MidiWorkspace implements OnDestroy {
         this.closeSettings();
       }
       if (e.key === 'Tab') this.trapTab(e);
+      return;
+    }
+    if (this.workspaceView === 'editor' && !this.timingOpen) {
+      // Editor commands are local. Never interpret Delete as clearing a track,
+      // or a piano-roll key press as a new live note / recording shortcut.
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        ['z', 'y'].includes(e.key.toLowerCase()) &&
+        !target.closest('input,select,textarea')
+      ) {
+        e.preventDefault();
+        if (!e.repeat) {
+          if (e.shiftKey || e.key.toLowerCase() === 'y') this.editor.redo();
+          else this.editor.undo();
+        }
+      } else if (e.code === 'Space' && !target.closest('input,select,textarea,button')) {
+        e.preventDefault();
+        if (!e.repeat) void this.togglePause();
+      }
       return;
     }
     const editing = !!target.closest('input,select,textarea,[contenteditable="true"]');

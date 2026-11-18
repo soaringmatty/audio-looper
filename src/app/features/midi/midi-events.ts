@@ -12,6 +12,30 @@ export function mergeTakes(takes: MidiEvent[][]): MidiEvent[] {
   const notes = new Map<number, number>();
   const owners = new Map<string, number>();
   const pedals = new Map<number, Map<number, number>>();
+  const pedalOwners = new Map<number, Set<number>>();
+  const batches = new Map<string, typeof events>();
+  for (const e of events) {
+    if ((e.data[0] & 0xf0) !== 0xb0 || !PEDAL_CONTROLLERS.includes(e.data[1])) continue;
+    const cc = e.data[1],
+      owner = e.layer * 16 + (e.data[0] & 15);
+    const sources = pedalOwners.get(cc) ?? new Set<number>();
+    sources.add(owner);
+    pedalOwners.set(cc, sources);
+    const key = `${e.at}:${cc}`,
+      group = batches.get(key) ?? [];
+    group.push(e);
+    batches.set(key, group);
+  }
+  const atomic = new Set<string>();
+  for (const [key, group] of batches) {
+    if (
+      group.every((e) => e.data[2] === group[0].data[2]) &&
+      new Set(group.map((e) => e.layer * 16 + (e.data[0] & 15))).size ===
+        pedalOwners.get(group[0].data[1])!.size
+    )
+      atomic.add(key);
+  }
+  const emitted = new Set<string>();
   const result: MidiEvent[] = [];
   for (const e of events) {
     const data = [...e.data],
@@ -31,7 +55,15 @@ export function mergeTakes(takes: MidiEvent[][]): MidiEvent[] {
       if (count > 1) continue;
     } else if (op === 0xb0 && PEDAL_CONTROLLERS.includes(note)) {
       const states = pedals.get(note) ?? new Map<number, number>();
-      states.set(e.layer * 16 + (data[0] & 15), data[2]);
+      const key = `${e.at}:${note}`;
+      // An editor paint sends the same value to EVERY owner at one timestamp.
+      // Apply that synchronized update once, before intervening note messages;
+      // otherwise MAX could emit a stale value between the owner updates.
+      if (atomic.has(key)) {
+        if (emitted.has(key)) continue;
+        emitted.add(key);
+        for (const source of pedalOwners.get(note)!) states.set(source, data[2]);
+      } else states.set(e.layer * 16 + (data[0] & 15), data[2]);
       pedals.set(note, states);
       data[2] = Math.max(0, ...states.values());
     }
