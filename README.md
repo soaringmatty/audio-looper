@@ -40,7 +40,7 @@ Neutral anthracite surfaces with cyan selection, compact Routing/Metronome/Sessi
 
 Routing → Kalibrieren opens the six-tap timing dialog; offset remains visible in Routing. Measurement includes playing behavior, not isolated hardware latency. MIDI settings/reset/import overlays share the design; audio retains its separate layout. Custom tempo division has been removed from both modes.
 
-Known limitation: closing MIDI settings does not reliably return performance focus; click the workspace if shortcuts do not respond. Hardware/sound acceptance and audio redesign remain separate.
+Closing MIDI settings returns focus to the performance surface after render. Opening calibration from diagnostics retains modal focus; closing it falls back to the performance surface if the original button no longer exists. Hardware/sound acceptance and audio redesign remain separate.
 
 ## v0.14.0
 

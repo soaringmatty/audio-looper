@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { MidiWorkspace } from './midi-workspace';
+import { focusPerformance } from '../../shared/ui/performance-focus';
 
 @Component({
   imports: [DecimalPipe],
@@ -188,7 +189,10 @@ export class MidiTimingDialog implements OnDestroy {
   ngOnDestroy(): void {
     this.dialog().nativeElement.close();
     setTimeout(() => {
+      if (this.workspace.settingsOpen || this.workspace.resetOpen || this.workspace.pendingProject)
+        return;
       if (this.opener?.isConnected) this.opener.focus({ preventScroll: true });
+      else focusPerformance();
     });
   }
 }

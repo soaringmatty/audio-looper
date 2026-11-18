@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.15.1 — 2026-11-18
+
+- Restore MIDI performance focus after settings teardown, once the workspace is no longer inert; retain modal focus when switching to calibration.
+- Fall back to the performance surface when closing calibration opened from a settings button that has been removed.
+- Add the focused browser check in scripts/browser-checks/midi-dialogs.js; use physical KeyZ for German Y and select the tempo proposal by its user-visible label instead of Angular internal option values.
+
+
 ## v0.15.0 — 2026-11-18
 
 - Redesign the MIDI workspace with neutral anthracite surfaces, cyan selection, readable Full-HD controls and compact Routing/Metronome/Session cards. Preserve established recording/playback/overdub circle colors; clearly distinguish muted tracks and queued unmute countdowns.

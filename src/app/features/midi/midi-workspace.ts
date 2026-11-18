@@ -967,7 +967,6 @@ export class MidiWorkspace implements OnDestroy {
   }
   closeSettings(): void {
     this.settingsOpen = false;
-    focusPerformance();
   }
   private trapTab(e: KeyboardEvent): void {
     const elements = Array.from(
