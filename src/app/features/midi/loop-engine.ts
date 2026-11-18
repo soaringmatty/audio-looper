@@ -5,6 +5,7 @@ import { compileLoop } from './loop-seam';
 export type Mode = 'free' | 'tempo';
 export type State = 'empty' | 'armed' | 'recording' | 'playing' | 'overdub';
 export type Action = 'start' | 'finish' | 'dub' | 'play';
+export type InputOrigin = 'input' | 'cleanup';
 export interface MidiEvent {
   at: number;
   data: number[];
@@ -127,7 +128,7 @@ export class LoopEngine {
     this.prepared.clear();
     for (const t of this.tracks) {
       for (const capture of [...this.seamCaptures[t.id]])
-        this.releaseSeam(t, [capture.marker.data[0], capture.attack[1], 0], at);
+        this.releaseSeam(t, [capture.marker.data[0], capture.attack[1], 0], at, at, 'cleanup');
       if (t.state === 'overdub') {
         this.endOverdub(t, at);
         this.finishReleaseTail(t, at, true);
@@ -203,7 +204,13 @@ export class LoopEngine {
         });
     }
   }
-  private releaseSeam(t: Track, data: number[], now: number, eventAt = now): boolean {
+  private releaseSeam(
+    t: Track,
+    data: number[],
+    now: number,
+    eventAt = now,
+    origin: InputOrigin = 'input',
+  ): boolean {
     const op = data[0] & 0xf0;
     if (
       !(
@@ -227,6 +234,26 @@ export class LoopEngine {
     const before = this.noteState(t, audiblePhase + EPS);
     for (const capture of op === 0xb0 ? matches : matches.slice(0, 1)) {
       const { layer, marker, attack } = capture;
+      if (op === 0xb0) {
+        // Keep the recorded part intact through its end. A modulo Off on this
+        // same owner would also cut an earlier pedal gesture at the loop head.
+        delete marker.boundary;
+        if (origin === 'input') {
+          const end = eventAt - capture.started >= t.length ? marker.at : phase;
+          if (end > 0)
+            t.layers!.push([
+              { at: 0, data: [...attack] },
+              ...t.take
+                .filter((e) => e.at < end && e.data[0] === attack[0] && e.data[1] === attack[1])
+                .map((e) => ({ at: e.at, data: [...e.data] })),
+              { at: end, data: [...data] },
+            ]);
+        }
+        // Cleanup closes the stored tail, but is not a played release at the
+        // current phase. Physical wrap fragments have their own finite owner.
+        this.seamCaptures[t.id] = this.seamCaptures[t.id].filter((c) => c !== capture);
+        continue;
+      }
       // Replace the safety marker with a real periodic release on the same owner.
       const lastOn = layer
         .filter(
@@ -236,7 +263,7 @@ export class LoopEngine {
       // The periodic editor supports at most one cycle per note. A key held for
       // several cycles must not collapse to a short modulo-duration on release.
       const releaseAt =
-        op !== 0xb0 && lastOn && eventAt - capture.started >= t.length
+        lastOn && eventAt - capture.started >= t.length
           ? (lastOn.at + t.length - EPS) % t.length
           : phase;
       layer.splice(layer.indexOf(marker), 1);
@@ -256,6 +283,13 @@ export class LoopEngine {
       for (const [key, value] of after.controls)
         if (JSON.stringify(value) !== JSON.stringify(before.controls.get(key)))
           this.sink.send(t.id, value, now);
+      for (const [key, value] of before.controls)
+        if (
+          !after.controls.has(key) &&
+          (value[0] & 0xf0) === 0xb0 &&
+          PEDAL_CONTROLLERS.includes(value[1])
+        )
+          this.sink.send(t.id, [value[0], value[1], 0], now);
     }
     return true;
   }
@@ -494,7 +528,13 @@ export class LoopEngine {
       this.prepared.delete(t.id);
     } else this.invalidateTrack(t.id, now);
   }
-  input(data: number[], now: number, track = this.selected, eventAt = now): void {
+  input(
+    data: number[],
+    now: number,
+    track = this.selected,
+    eventAt = now,
+    origin: InputOrigin = 'input',
+  ): void {
     if (this.paused) return;
     this.tick(now, now);
     const op = data[0] & 0xf0;
@@ -505,7 +545,7 @@ export class LoopEngine {
     )
       return;
     const t = this.tracks[track];
-    const seamRelease = this.releaseSeam(t, data, now, eventAt);
+    const seamRelease = this.releaseSeam(t, data, now, eventAt, origin);
     const key = `${data[0] & 15}:${data[1]}`;
     if (t.releaseTail) {
       const tail = t.releaseTail;

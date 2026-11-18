@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.16.2 — 2026-11-18
+
+- Preserve recorded Sustain/pedal spans when a physical release arrives after the loop seam: split the finite wrap owner instead of inserting a modulo Off into the original pedal gesture. Synthetic input cleanup/Stop is distinguished from a played release and cannot retroactively cut the loop head. Keep the existing finite note-release fix and .aloop v1 compatibility.
+- Add focused regressions for external MIDI with monitoring disabled, cleanup/Stop/editor-lane/aloop preservation, finite overlapping pedal wraps and multi-cycle holds; retain the original seam-note regression.
+
 ## v0.16.1 — 2026-11-18
 
 - Keep physical note/pedal release routing across recording/overdub seams and complete the original capture owner, rather than creating an orphan release in the next take. Intermediate pedal updates receive matching releases; long notes remain finite within the one-cycle representation. Do not reset unrelated voices or reinterpret ambiguous legacy holds.

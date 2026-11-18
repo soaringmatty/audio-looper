@@ -1,3 +1,16 @@
+# Release v0.16.2 · 18. November 2026
+
+- Explicit publication approval for the Sustain seam fix. Target: existing default GitHub Pages only; preserve private LAN/dev settings and public-specific scripts/README. Earlier local-only entries below describe implementation, not this release approval. No new feature, NAS/devserver change, broad regression or physical/acoustic acceptance.
+
+- Release checks: public focused Sustain/seam Vitest filter passes3/3 (2 intentionally skipped). Original and public production builds pass with identical main-T7YAJCSM.js/styles-CJP2R3GZ.css,781.31kB initial/131.31kB over unchanged warning budget. Pages release check passes19files; no additional broad, browser or hardware/acoustic acceptance.
+
+# Sustain seam preservation · 18. November 2026
+
+- Explicit local fix approval; no commit, public sync, deployment, version bump or infrastructure changes. Angular remains 22.2.3.
+- Three focused checks passed: `yarn.cmd exec vitest run src/tests/midi-sustain-seam.test.ts src/tests/midi-seam-release.test.ts -t "sustain cleanup|sustain physical|seam capture keeps"` (3 passed / 2 deliberately skipped). Actual Engine/Router with a synthetic connected external MIDI output and monitoring disabled: (1) down10 through a1000ms recording, cleanup100ms into overdub and Stop keep the original pedal span10–999.99, editor lane, unrelated tracks and validated .aloop roundtrip; (2) a later physical release cannot truncate an earlier100-valued gesture, real wrap80 and current intermediate64 remain finite, multi-cycle127 does not collapse to a short head and returns to0 at the finite end; (3) existing seam capture regression still covers original note ownership, physical releases, NoteOn velocity0, intermediate pedal releases and finite multi-cycle notes.
+- Engine input provenance distinguishes real input from synthetic cleanup. Original pedal safety markers become finite take-end releases; actual post-seam pedal fragments are separate finite owners, preserving MAX semantics and avoiding an early Off in the original owner. Note release ownership is retained. No automatic repair of previously damaged recordings.
+- Production build passed: main-T7YAJCSM.js / styles-CJP2R3GZ.css,781.31kB initial /131.31kB above the unchanged650kB warning budget. `git diff --check` passed. No broad regression, new browser/AudioWorklet or physical/acoustic Clavinova check; the exact user hardware sequence still requires practical acceptance. Existing devserver not restarted; manual client reload only after saving MIDI.
+
 # Release v0.16.1 · 18. November 2026
 
 - Release checks: public seam-release Vitest file passes3/3; original/public production builds pass with main-UE3YBWGM.js and styles-CJP2R3GZ.css,780.82kB initial/130.82kB above unchanged warning budget. Pages release check passes19files; public-index privacy scan passes137files and all src files match the original. Existing real-browser/AudioWorklet verification below remains applicable. No broad/hardware/acoustic acceptance.
