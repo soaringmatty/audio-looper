@@ -1,47 +1,85 @@
 @let vm = workspace.view();
-<label
-  >EINGANG<select
-    [ngModel]="vm.midi.inputId"
-    (ngModelChange)="vm.setInput($event); workspace.refresh()"
+<div class="tool-heading">
+  <h2>
+    <svg
+      class="ui-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="6" height="6" rx="1.5" />
+      <rect x="15" y="15" width="6" height="6" rx="1.5" />
+      <path d="M9 6h6a3 3 0 0 1 3 3v6M15 18H9a3 3 0 0 1-3-3V9" /></svg
+    >Ein- &amp; Ausgabe
+  </h2>
+</div>
+<div class="route-fields">
+  <label
+    >Eingang<select
+      [ngModel]="vm.midi.inputId"
+      (ngModelChange)="vm.setInput($event); workspace.refresh()"
+    >
+      <option value="piano">Browser-Piano / Tastatur</option>
+      <option value="">Kein Eingang</option>
+      @for (p of vm.midi.inputs; track p.id) {
+        <option [value]="p.id">{{ p.name || p.id }}</option>
+      }
+    </select></label
   >
-    <option value="piano">Browser-Piano / Tastatur</option>
-    <option value="">Kein Eingang</option>
-    @for (p of vm.midi.inputs; track p.id) {
-      <option [value]="p.id">{{ p.name || p.id }}</option>
-    }
-  </select></label
->
-<span class="route" aria-hidden="true">→</span>
-<label
-  >AUSGANG<select
-    [ngModel]="vm.midi.outputId"
-    (ngModelChange)="vm.setOutput($event); workspace.refresh()"
+
+  <label
+    >Ausgang<select
+      [ngModel]="vm.midi.outputId"
+      (ngModelChange)="vm.setOutput($event); workspace.refresh()"
+    >
+      <option value="browser">Browser-Synth · Kopfhörer / Lautsprecher</option>
+      <option value="">Kein Ausgang</option>
+      @for (p of vm.midi.outputs; track p.id) {
+        <option [value]="p.id">{{ p.name || p.id }}</option>
+      }
+    </select></label
   >
-    <option value="browser">Browser-Synth · Kopfhörer / Lautsprecher</option>
-    <option value="">Kein Ausgang</option>
-    @for (p of vm.midi.outputs; track p.id) {
-      <option [value]="p.id">{{ p.name || p.id }}</option>
+</div>
+<div class="route-status">
+  @if (vm.midi.outputId === 'browser') {
+    <div class="audio-status" role="status" aria-live="polite" [attr.data-state]="vm.audioState">
+      <span>AUDIO</span><strong><i aria-hidden="true"></i>{{ vm.audioStatus }}</strong>
+    </div>
+  } @else if (vm.midi.outputId) {
+    <div class="audio-status device-profile">
+      <span>GERÄTEPROFIL</span
+      ><strong>{{ vm.midi.clavinova ? 'Yamaha CLP-625' : 'General MIDI' }}</strong>
+    </div>
+  }
+  <label class="check live-monitor"
+    ><input
+      role="switch"
+      type="checkbox"
+      [ngModel]="vm.midi.monitor"
+      (ngModelChange)="vm.monitor($event); workspace.refresh()" />Live-Mithören<info-hint
+      label="Info zum Live-Mithören"
+      text="Browser-Ausgang: standardmäßig an. Externes Gerät: standardmäßig aus, damit ein selbst klingendes Klavier nicht doppelt spielt. Die Auswahl lässt sich manuell übersteuern. Local Control am Klavier wird nicht verändert."
+  /></label>
+  <div class="route-calibration">
+    @if (vm.timing.result; as result) {
+      <span
+        role="status"
+        title="Gemessener Einspielversatz zum Klick, keine isolierte Hardwarelatenz."
+      >
+        {{ result.offsetMs | number: '1.0-1' }} ms
+        <span class="sr-only">Versatz</span>
+      </span>
     }
-  </select></label
->
-@if (vm.midi.outputId === 'browser') {
-  <div class="audio-status" role="status" aria-live="polite" [attr.data-state]="vm.audioState">
-    <span>AUDIO</span><strong><i aria-hidden="true"></i>{{ vm.audioStatus }}</strong>
+    <button
+      class="calibration-button"
+      (click)="vm.openTimingDialog(); workspace.refresh()"
+      aria-haspopup="dialog"
+    >
+      Kalibrieren
+    </button>
   </div>
-} @else if (vm.midi.outputId) {
-  <div class="audio-status device-profile">
-    <span>GERÄTEPROFIL</span
-    ><strong>{{ vm.midi.clavinova ? 'Yamaha CLP-625' : 'General MIDI' }}</strong>
-  </div>
-}
-<label class="check live-monitor"
-  ><input
-    type="checkbox"
-    [ngModel]="vm.midi.monitor"
-    (ngModelChange)="vm.monitor($event); workspace.refresh()" />Live-Mithören<info-hint
-    label="Info zum Live-Mithören"
-    text="Browser-Ausgang: standardmäßig an. Externes Gerät: standardmäßig aus, damit ein selbst klingendes Klavier nicht doppelt spielt. Die Auswahl lässt sich manuell übersteuern. Local Control am Klavier wird nicht verändert."
-/></label>
-<button class="panic-button" (click)="vm.panic(); workspace.refresh()">
-  Hängende Noten beenden
-</button>
+</div>

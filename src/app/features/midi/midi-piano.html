@@ -1,5 +1,20 @@
 @let vm = workspace.view();
 <div class="piano-tools">
+  <h2>
+    <svg
+      class="ui-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M6 4v9h3V4M15 4v9h3V4M7 13v7M12 4v16M17 13v7" /></svg
+    >Browser-Piano
+  </h2>
   <div class="octave-controls">
     <button
       aria-label="Oktave tiefer"
@@ -17,7 +32,7 @@
     >
       ←
     </button>
-    <span>{{ vm.piano.rangeLabel }} <kbd>← / → · ↑ / ↓</kbd></span>
+    <span>{{ vm.piano.rangeLabel }} </span>
     <button
       aria-label="Eine Weißtaste höher"
       title="Eine Weißtaste höher (→)"
@@ -35,13 +50,7 @@
       ↑
     </button>
   </div>
-  <button aria-label="Piano ausblenden" (click)="vm.togglePiano(); workspace.refresh()">×</button>
 </div>
-@if (vm.midi.inputId !== 'piano') {
-  <button class="piano-overlay" (click)="vm.setInput('piano'); workspace.refresh()">
-    Browser-Piano als Eingang wählen
-  </button>
-}
 @if (vm.midi.outputId === 'browser' && !vm.midi.browser.channels[vm.engine.selected].loaded) {
   <div class="piano-loading" role="status">
     Instrumente werden vorbereitet · Beim Spielen startet Audio automatisch.
@@ -50,12 +59,18 @@
 <div
   id="piano-surface"
   class="piano-keys"
+  [class.keyboard-navigation]="vm.pianoKeyboardFocus"
+  (pointermove)="vm.pianoMove($event); workspace.refresh()"
+  (pointerup)="vm.pianoUp($event); workspace.refresh()"
+  (pointercancel)="vm.pianoUp($event); workspace.refresh()"
+  (lostpointercapture)="vm.pianoUp($event); workspace.refresh()"
   tabindex="0"
   aria-label="88 Klaviertasten A0 bis C8. Pfeile links/rechts verschieben um eine Weißtaste, hoch/runter um eine Oktave."
 >
   @for (k of vm.fullPiano; track k.note) {
     <button
       class="piano-key"
+      [attr.data-note]="k.note"
       [class.black]="k.black"
       [class.white]="!k.black"
       [class.mapped]="vm.piano.mapped(k.note)"
@@ -69,9 +84,6 @@
       "
       [attr.aria-pressed]="vm.piano.activeNote(k.note)"
       (pointerdown)="vm.pianoDown($event, k.note); workspace.refresh()"
-      (pointerup)="vm.pianoUp($event); workspace.refresh()"
-      (pointercancel)="vm.pianoUp($event); workspace.refresh()"
-      (lostpointercapture)="vm.pianoUp($event); workspace.refresh()"
       (keydown)="vm.pianoKeyboard($event, k.note, true); workspace.refresh()"
       (keyup)="vm.pianoKeyboard($event, k.note, false); workspace.refresh()"
       (blur)="vm.release(); workspace.refresh()"

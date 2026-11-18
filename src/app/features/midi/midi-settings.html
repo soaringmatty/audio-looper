@@ -218,6 +218,9 @@
   }
   @if (vm.settingsTab === 'diagnostics') {
     <section class="midi-diagnostics">
+      <button class="panic-button" (click)="vm.panic(); workspace.refresh()">
+        Hängende Noten beenden
+      </button>
       <h3>MIDI-Trace</h3>
       <label class="check"
         ><input
@@ -274,10 +277,10 @@
       </p>
       <div class="diagnostic-actions">
         <button
-          [disabled]="vm.engine.busy || vm.timing.active"
-          (click)="vm.startTiming(); workspace.refresh()"
+          [disabled]="vm.metro.outputMode !== 'laptop'"
+          (click)="vm.openTimingDialog(); workspace.refresh()"
         >
-          Auf Hauptseite messen</button
+          Kalibrierung öffnen</button
         ><button [disabled]="!vm.timing.active" (click)="vm.timing.cancel(); workspace.refresh()">
           Messung abbrechen
         </button>

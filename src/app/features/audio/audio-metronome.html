@@ -52,12 +52,7 @@
       [locked]="vm.tempoChoiceLocked"
       [candidates]="vm.candidates"
       [index]="vm.tempoIndex"
-      [(bars)]="vm.tempoBars"
-      [(signature)]="vm.tempoSignature"
-      [bpm]="vm.tempoBpm"
-      [canApply]="vm.canConfirm"
       (choose)="vm.applyTempoChoice($event); workspace.refresh()"
-      (customChange)="vm.confirmTempo(); workspace.refresh()"
     />
   }
 </div>

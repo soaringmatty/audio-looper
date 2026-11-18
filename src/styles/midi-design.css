@@ -1,0 +1,976 @@
+/* MIDI workspace: Full-HD baseline. Audio retains its existing presentation. */
+:root {
+  --al-canvas: #151618;
+  --al-surface: #202124;
+  --al-raised: #2c2e32;
+  --al-field: #191a1d;
+  --al-border: #45484e;
+  --al-text: #f0f0f2;
+  --al-muted: #babcc2;
+  --al-accent: #4fc9f6;
+  --al-active-top: #1e5474;
+  --al-active-bottom: #12374f;
+  --al-active-border: #4fc9f6;
+  --al-active-inner: #b0ebff80;
+  --al-active-glow: #24b7f75c;
+  --al-danger: #ff9daa;
+  --al-radius: 13px;
+  --al-control: 38px;
+  --al-piano-height: 200px;
+}
+.ui-icon {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.workspace.midi-workspace,
+.workspace.midi-workspace.with-piano {
+  max-width: 1880px;
+  height: min(100dvh, 1080px);
+  min-height: 860px;
+  margin-inline: auto;
+  padding: 14px 24px;
+  gap: 14px;
+  grid-template-rows: 44px max-content minmax(382px, 1fr);
+  align-content: start;
+  background: radial-gradient(ellipse at 50% 0, #ffffff06, transparent 65%);
+}
+.workspace.midi-workspace.with-piano {
+  grid-template-rows: 44px max-content minmax(382px, 1fr) var(--al-piano-height);
+}
+.midi-workspace h1 {
+  font-size: 32px;
+  letter-spacing: -0.8px;
+}
+.midi-workspace .eyebrow {
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  color: #b7bbc3;
+}
+.midi-workspace h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+}
+:is(.midi-workspace, .midi-design-overlay) label {
+  color: var(--al-muted);
+  font-size: 14px;
+}
+/* :where() keeps the shared button defaults low-specificity. Track heads/piano
+   are not regular buttons and must never get a rectangular background. */
+:is(.midi-workspace, .midi-design-overlay)
+  :where(
+    button:not(.loop-button, .piano-key, .track-select, .metro-switch, .bars-clear, .info-button)
+  ) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: var(--al-control);
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--al-border);
+  font-size: 16px;
+  color: var(--al-text);
+  background: linear-gradient(#34363b, #292b2f);
+  box-shadow:
+    inset 0 1px #ffffff0a,
+    0 2px 4px #0002;
+}
+:is(.midi-workspace, .midi-design-overlay)
+  :where(
+    button:not(.loop-button, .piano-key, .track-select, .metro-switch, .bars-clear, .info-button)
+  ):hover:not(:disabled) {
+  filter: none;
+  background: linear-gradient(#41444a, #34373d);
+  border-color: #858b94;
+}
+:is(.midi-workspace, .midi-design-overlay) :is(button, input, select):focus-visible {
+  outline: 2px solid var(--al-accent);
+  outline-offset: 3px;
+}
+.midi-workspace .panel,
+.midi-design-overlay.panel {
+  background: linear-gradient(145deg, #27292d, #202124 75%);
+  border: 1px solid var(--al-border);
+  border-radius: var(--al-radius);
+  box-shadow:
+    inset 0 1px #ffffff0b,
+    0 7px 20px #0003;
+}
+:is(.midi-workspace, .midi-design-overlay) input:not([type='range'], [type='checkbox']),
+:is(.midi-workspace, .midi-design-overlay) select {
+  min-height: 38px;
+  font-size: 16px;
+  color: var(--al-text);
+  border: 1px solid #555a63;
+  border-radius: 7px;
+  background: var(--al-field);
+}
+.midi-workspace .setup-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 0.9fr);
+  align-items: stretch;
+  gap: 14px;
+}
+.midi-workspace .tool-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px 16px;
+  height: auto;
+  min-width: 0;
+}
+.midi-workspace .tool-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 26px;
+  width: 100%;
+  margin-bottom: 2px;
+}
+.midi-workspace .tool-heading .ui-icon {
+  color: #c0c3c9;
+}
+.midi-workspace .section-caption {
+  font-size: 14px;
+  color: var(--al-muted);
+}
+.midi-workspace .route-fields {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.midi-workspace .route-fields label {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+}
+.midi-workspace .route-fields select {
+  width: 100%;
+  height: 38px;
+  margin: 0;
+  padding: 6px 36px 6px 10px;
+}
+.midi-workspace .route-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  column-gap: 22px;
+  row-gap: 6px;
+  min-height: 30px;
+}
+.midi-workspace .audio-status {
+  display: flex;
+  align-items: center;
+  height: auto;
+  min-width: 0;
+  gap: 0;
+}
+.midi-workspace .audio-status > span {
+  display: none;
+}
+.midi-workspace .audio-status strong {
+  height: auto;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: normal;
+}
+.midi-workspace .check {
+  gap: 9px;
+  font-size: 14px !important;
+  color: var(--al-text);
+}
+.midi-workspace input[role='switch'] {
+  appearance: none;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+  margin: 0;
+  border: 1px solid #676d76;
+  border-radius: 20px;
+  background: #3a3d43;
+  cursor: pointer;
+}
+.midi-workspace input[role='switch']::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #eef8ff;
+  transition: transform 0.15s;
+}
+.midi-workspace input[role='switch']:checked {
+  border-color: var(--al-active-border);
+  background: #258dbf;
+  box-shadow:
+    inset 0 0 0 1px var(--al-active-inner),
+    0 0 8px var(--al-active-glow);
+}
+.midi-workspace input[role='switch']:checked::before {
+  transform: translateX(16px);
+}
+.midi-workspace button.metro-switch {
+  display: block;
+  width: 42px;
+  min-width: 42px;
+  height: 24px;
+  min-height: 24px;
+  padding: 3px;
+  border-radius: 20px;
+  border: 1px solid #676d76;
+  background: #3a3d43;
+}
+.midi-workspace button.metro-switch span {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #eef8ff;
+  transition: transform 0.15s;
+}
+.midi-workspace button.metro-switch[aria-checked='true'] {
+  background: #258dbf;
+  border-color: var(--al-active-border);
+  box-shadow:
+    inset 0 0 0 1px var(--al-active-inner),
+    0 0 8px var(--al-active-glow);
+}
+.midi-workspace button.metro-switch[aria-checked='true'] span {
+  transform: translateX(16px);
+}
+.midi-workspace .tempo-control-slot {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  height: 60px;
+  min-height: 60px;
+  flex: 0 0 60px;
+}
+.midi-workspace .tempo-field,
+.midi-workspace .signature-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 0 0 auto;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 18px;
+}
+.midi-workspace .redivide {
+  align-self: flex-end;
+  height: 38px;
+}
+.midi-workspace .tempo-field > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.midi-workspace .tempo-field input {
+  width: 90px;
+  min-height: 38px;
+  font-size: 21px;
+  font-weight: 600;
+  padding: 4px 9px;
+  font-variant-numeric: tabular-nums;
+}
+.midi-workspace .tempo-field > div > span {
+  font-size: 14px;
+}
+.midi-workspace .signature-field select {
+  width: 88px;
+  height: 38px;
+}
+.midi-workspace .metro-secondary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 38px;
+}
+.midi-workspace #metronome-output-midi {
+  width: 150px;
+  flex: 0 0 150px;
+  height: 38px;
+}
+.midi-workspace .metro-level {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 1 240px;
+  min-width: 140px;
+  max-width: 240px;
+  white-space: nowrap;
+}
+.midi-workspace .metro-level input {
+  width: 155px;
+  min-width: 50px;
+}
+.midi-workspace .metro-level > span {
+  font-size: 14px;
+  min-width: 42px;
+}
+.midi-workspace .route-status {
+  column-gap: 14px;
+}
+.midi-workspace .route-calibration {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--al-muted);
+  font-variant-numeric: tabular-nums;
+}
+.midi-workspace .route-calibration .calibration-button {
+  min-height: 30px;
+  padding: 3px 8px;
+  font-size: 14px;
+}
+.midi-workspace .session-files,
+.midi-workspace .session-transport {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.midi-workspace .session-card :is(.session-files, .session-transport) button {
+  min-width: 0;
+  width: auto;
+  height: 38px;
+  padding: 7px 10px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.midi-workspace .session-card .transport-icon {
+  flex: 0 0 38px;
+  width: 38px;
+  padding: 7px;
+}
+.midi-workspace .session-files button {
+  flex: 1 1 0;
+}
+.midi-workspace .session-transport button:not(.transport-icon) {
+  flex: 1 1 auto;
+}
+.midi-workspace button.reset-all-tracks,
+.midi-workspace .track .track-actions button.delete {
+  min-height: 38px;
+  padding: 7px 12px;
+  background: linear-gradient(#3b2c30, #2d2428);
+  border: 1px solid #80535e;
+  color: #edb9c4;
+  margin: 0;
+}
+.midi-workspace button.reset-all-tracks:hover:not(:disabled),
+.midi-workspace .track .track-actions button.delete:hover:not(:disabled) {
+  background: linear-gradient(#4a3037, #38272d);
+  color: var(--al-danger);
+  border-color: #d18c99;
+}
+.midi-workspace button.transport-toggle.active,
+.mode-switch button.active {
+  background: linear-gradient(var(--al-active-top), var(--al-active-bottom));
+  border: 1px solid var(--al-active-border);
+  color: #fff;
+  box-shadow:
+    inset 0 0 0 1px var(--al-active-inner),
+    0 0 9px var(--al-active-glow);
+}
+.midi-workspace .mode-switch button {
+  min-width: 72px;
+  font-size: 16px;
+}
+.midi-workspace .mode-switch {
+  gap: 4px;
+  border: 1px solid #555a63;
+  background: var(--al-field);
+}
+.midi-workspace .all-mute.active {
+  background: #45484d;
+  border-color: #c8ccd3;
+}
+.midi-workspace .tracks {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-height: 382px;
+  max-height: none;
+  gap: 14px;
+}
+.midi-workspace .track {
+  display: grid;
+  grid-template-rows: 46px minmax(166px, 1fr) 40px 58px 40px;
+  gap: 6px;
+  padding: 0 14px 6px;
+  min-height: 382px;
+  background: linear-gradient(150deg, #26282c, #1e2023 80%);
+}
+.midi-workspace .track.selected {
+  border-color: var(--al-active-border);
+  box-shadow:
+    inset 0 0 0 1px var(--al-active-inner),
+    0 0 0 1px var(--al-active-border),
+    0 0 13px var(--al-active-glow);
+}
+.midi-workspace .track .track-heading {
+  grid-row: 1;
+  height: 46px;
+  min-height: 46px;
+  margin: 0 -14px;
+  padding: 0 14px;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(#33363b, #292b30);
+  border-bottom: 1px solid #4b4f57;
+}
+.midi-workspace .track.selected .track-heading {
+  background: linear-gradient(110deg, #204e6b, #193a50);
+  border-bottom-color: #3e7ea2;
+  box-shadow: inset 0 1px #b0ebff40;
+}
+.midi-workspace .track .track-select,
+.midi-workspace .track .track-select:hover {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+  color: var(--al-text);
+  font-size: 17px;
+  font-weight: 600;
+}
+.midi-workspace .track .dial-slot {
+  grid-row: 2;
+  grid-column: 1;
+  padding-block: 0;
+}
+.midi-workspace .track .loop-button {
+  width: min(205px, calc(100cqh - 10px), calc(100cqw - 14px));
+  height: min(205px, calc(100cqh - 10px), calc(100cqw - 14px));
+  padding: 9px;
+  box-shadow: 0 0 0 4px #111214;
+}
+.midi-workspace .track .loop-button:not(.recording, .playing, .overdub) {
+  --tone: #aeb3bc;
+}
+.midi-workspace .track .loop-button::before {
+  background: conic-gradient(var(--tone) var(--progress), #4c5057 0);
+  box-shadow: none;
+}
+.midi-workspace .track .loop-button:is(.recording, .playing, .overdub) {
+  filter: none;
+}
+.midi-workspace .loop-inner {
+  gap: 9px;
+  color: var(--tone);
+  background: radial-gradient(circle at 50% 25%, #36393f, #232529);
+  box-shadow: none;
+}
+.midi-workspace .recording .loop-inner {
+  background: radial-gradient(circle at 50% 25%, #633746, #2c1f2c);
+}
+.midi-workspace .playing .loop-inner {
+  background: radial-gradient(circle at 50% 25%, #294f46, #192b2c);
+}
+.midi-workspace .overdub .loop-inner {
+  background: radial-gradient(circle at 50% 25%, #5f5035, #2d2921);
+}
+/* The card already expresses selection. Keyboard focus stays visible locally
+   without a second cyan ring; queued musical actions retain their own outline. */
+.midi-workspace .track .loop-button:focus-visible {
+  outline: none;
+}
+.midi-workspace .track .loop-button:focus-visible .loop-label {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.midi-workspace .track .loop-button.queued,
+.midi-workspace .track .loop-button.queued:focus-visible {
+  outline: 2px dashed var(--tone);
+  outline-offset: 5px;
+}
+.midi-workspace .loop-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0;
+  line-height: 1;
+}
+.midi-workspace .loop-icon .ui-icon {
+  width: 40px;
+  height: 40px;
+}
+.midi-workspace .loop-label {
+  font-size: 16px;
+  line-height: 1.25;
+}
+.midi-workspace .track .loop-button.queued .loop-icon {
+  display: none;
+}
+.midi-workspace .queue-countdown {
+  font-size: 13px;
+  line-height: 1.35;
+  max-width: 95%;
+}
+.midi-workspace .track .loop-button.queued .loop-label {
+  max-width: 95%;
+  font-size: 15px;
+}
+.midi-workspace .track > instrument-picker,
+.midi-workspace .track > .instrument-follow {
+  grid-row: 3;
+  grid-column: 1;
+}
+.midi-workspace .track .instrument-trigger {
+  display: block;
+  width: 100%;
+  height: 40px;
+  text-align: left;
+  padding: 7px 10px;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: linear-gradient(#303338, #26282d);
+}
+.midi-workspace .track .track-values {
+  grid-row: 4;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  gap: 16px;
+  align-items: start;
+  padding: 3px 0 0;
+}
+.midi-workspace .track .volume label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  margin-bottom: 0;
+}
+.midi-workspace .track .track-length {
+  gap: 5px;
+  font-size: 14px;
+}
+.midi-workspace .track .track-length input {
+  min-height: 30px;
+  height: 30px;
+  font-size: 14px;
+}
+.midi-workspace .track .track-bars-value {
+  font-size: 15px;
+}
+.midi-workspace .track .track-bars {
+  min-width: 0;
+}
+.midi-workspace .track .track-actions {
+  grid-row: 5;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 9px;
+}
+.midi-workspace .track .track-actions button {
+  min-height: 40px;
+  min-width: 0;
+  font-size: 15px;
+  padding: 7px 9px;
+}
+.midi-workspace .track .track-actions button.delete {
+  font-size: 0;
+  gap: 0;
+  color: #c6a7ad;
+}
+.midi-workspace .track .track-actions button.delete:hover:not(:disabled) {
+  color: var(--al-danger);
+  border-color: #d18c99;
+}
+.midi-workspace .track .mute-button.active {
+  border: 1px solid #c8ccd3;
+  background: #484c53;
+}
+.midi-workspace .track .bars-clear {
+  width: 24px;
+  height: 24px;
+  min-height: 0;
+  padding: 0;
+  font-size: 15px;
+  background: transparent;
+}
+.midi-workspace .piano-dock {
+  height: var(--al-piano-height);
+  min-height: var(--al-piano-height);
+  max-height: var(--al-piano-height);
+  padding: 10px 14px 12px;
+  display: grid;
+  grid-template-rows: 32px minmax(0, 1fr);
+  gap: 8px;
+}
+.midi-workspace .piano-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.midi-workspace .piano-tools h2 {
+  font-size: 16px;
+}
+.midi-workspace .piano-tools .octave-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.midi-workspace .piano-tools .octave-controls button {
+  min-height: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 2px 8px;
+}
+.midi-workspace .octave-controls > span {
+  min-width: 82px;
+  text-align: center;
+  font-size: 15px;
+}
+.midi-workspace .piano-key.white {
+  background: linear-gradient(#f5f5f6, #dddfe3);
+}
+.midi-workspace .piano-key.black {
+  background: linear-gradient(#292c31, #101114);
+  box-shadow:
+    inset 0 -3px #3c4047,
+    0 2px 2px #0007;
+}
+.midi-workspace .piano-key.white.mapped {
+  background: linear-gradient(#bde1fa, #8cbfe2);
+}
+.midi-workspace .piano-key.black.mapped {
+  background: linear-gradient(#397da6, #234c70);
+}
+.midi-workspace .piano-key.pressed {
+  background: #5bbbf0;
+}
+.midi-workspace .piano-binding {
+  font-size: 14px;
+}
+.midi-workspace .black .piano-binding {
+  font-size: 13px;
+}
+.midi-workspace .note-name {
+  font-size: 12px;
+}
+.midi-workspace .piano-loading {
+  padding: 9px 14px;
+  font-size: 14px;
+}
+.midi-workspace .mobile-selector {
+  display: none;
+}
+.midi-workspace .performance-alert {
+  grid-column: 1;
+}
+.midi-workspace .tempo-inline {
+  display: flex;
+  align-items: end;
+  flex-wrap: nowrap;
+  height: 60px;
+  gap: 8px;
+}
+.midi-workspace .tempo-inline .tempo-choice {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.midi-workspace .tempo-inline label {
+  font-size: 14px;
+  line-height: 18px;
+}
+.midi-workspace .tempo-inline select {
+  height: 38px;
+  font-size: 15px;
+}
+.midi-workspace .tempo-inline input {
+  width: 64px;
+}
+.midi-workspace .tempo-inline > strong {
+  font-size: 15px;
+}
+.midi-workspace .tempo-inline info-hint {
+  align-self: flex-end;
+  align-items: center;
+  height: 38px;
+}
+.midi-workspace input[type='range'] {
+  accent-color: #80cffa;
+  height: 18px;
+}
+@media (max-width: 1450px) {
+  .midi-workspace .setup-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .midi-workspace .session-card {
+    grid-column: 1/-1;
+  }
+  .midi-workspace .session-card .section-caption {
+    display: none;
+  }
+  .workspace.midi-workspace,
+  .workspace.midi-workspace.with-piano {
+    height: auto;
+    min-height: 100dvh;
+    grid-template-rows: 44px max-content minmax(382px, 1fr);
+  }
+  .workspace.midi-workspace.with-piano {
+    grid-template-rows: 44px max-content minmax(382px, 1fr) var(--al-piano-height);
+  }
+  .midi-workspace .track .instrument-trigger {
+    font-size: 14px;
+  }
+}
+@media (max-width: 1150px) {
+  .workspace.midi-workspace,
+  .workspace.midi-workspace.with-piano {
+    grid-template-rows: 44px max-content 38px 400px;
+  }
+  .workspace.midi-workspace.with-piano {
+    grid-template-rows: 44px max-content 38px 400px var(--al-piano-height);
+  }
+  .midi-workspace .tracks {
+    grid-template-columns: minmax(0, 1fr);
+    width: min(100%, 540px);
+    justify-self: center;
+  }
+  .midi-workspace .track.mobile-hidden {
+    display: none;
+  }
+  .midi-workspace .mobile-selector {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+  .midi-workspace .mobile-selector button {
+    min-width: 42px;
+  }
+  .midi-workspace .mobile-selector button.active {
+    background: linear-gradient(var(--al-active-top), var(--al-active-bottom));
+    border-color: var(--al-active-border);
+    box-shadow:
+      inset 0 0 0 1px var(--al-active-inner),
+      0 0 8px var(--al-active-glow);
+  }
+  .midi-workspace .eyebrow {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .workspace.midi-workspace,
+  .workspace.midi-workspace.with-piano {
+    padding: 12px;
+    gap: 12px;
+    grid-template-rows: max-content max-content 38px 400px;
+  }
+  .workspace.midi-workspace.with-piano {
+    grid-template-rows: max-content max-content 38px 400px var(--al-piano-height);
+  }
+  .midi-workspace header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .midi-workspace header nav {
+    margin-left: auto;
+  }
+  .midi-workspace h1 {
+    font-size: 28px;
+  }
+  .midi-workspace .setup-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .midi-workspace .tool-card {
+    padding: 12px;
+  }
+  .midi-workspace .route-fields label {
+    grid-template-columns: 60px minmax(0, 1fr);
+    gap: 6px;
+  }
+  .midi-workspace .route-status {
+    gap: 10px;
+  }
+  .midi-workspace .tempo-control-slot {
+    gap: 12px;
+    flex-wrap: nowrap;
+  }
+  .midi-workspace .tempo-field,
+  .midi-workspace .signature-field {
+    gap: 4px;
+  }
+  .midi-workspace .tempo-field input {
+    width: 78px;
+  }
+  .midi-workspace .signature-field select {
+    width: 76px;
+  }
+  .midi-workspace .metro-secondary {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .midi-workspace .metro-level {
+    flex: 1;
+    max-width: 225px;
+  }
+  .midi-workspace .session-card {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .midi-workspace .session-card .tool-heading {
+    width: 100%;
+  }
+  .midi-workspace .piano-dock {
+    padding-inline: 8px;
+  }
+  .midi-workspace .piano-tools h2 {
+    font-size: 0;
+    gap: 0;
+  }
+  .midi-workspace .piano-binding {
+    font-size: 12px;
+  }
+  .midi-workspace .black .piano-binding {
+    font-size: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .midi-workspace * {
+    transition: none !important;
+  }
+}
+
+.midi-workspace .track .track-values .volume,
+.midi-workspace .track .track-bars,
+.midi-workspace .track .track-length {
+  grid-template-rows: 20px 30px;
+  gap: 4px;
+}
+.midi-workspace .track .volume label {
+  line-height: 20px;
+}
+.midi-workspace .track .track-length input::placeholder {
+  font-size: 14px;
+}
+.midi-workspace .track .track-actions {
+  height: 40px;
+}
+
+/* Mute is a track state, not a disabled control. Preserve contrast and the
+   independent selection outline; never grayscale recording/overdub states. */
+.midi-workspace .track.muted {
+  background: linear-gradient(145deg, #50545b, #3e4249 80%);
+  border-color: #8b929d;
+}
+.midi-workspace .track.muted .track-heading {
+  background: linear-gradient(#626872, #4e545d);
+  border-bottom-color: #929ba8;
+}
+.midi-workspace .track.muted.selected {
+  border-color: var(--al-active-border);
+}
+.midi-workspace .track.muted.selected .track-heading {
+  background: linear-gradient(110deg, #204e6b, #193a50);
+  border-bottom-color: var(--al-active-border);
+}
+.midi-workspace .track.muted .loop-button.playing::before {
+  background: conic-gradient(#9a9fa8 var(--progress), #555960 0);
+}
+.midi-workspace .track.muted .loop-button.playing {
+  filter: none;
+}
+.midi-workspace .track.muted .playing .loop-inner {
+  background: radial-gradient(circle at 45% 20%, #484b50, #2d2f33 80%);
+  color: #edf2f7;
+}
+.midi-workspace .track .mute-indicator {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 2px 8px;
+  background: #d3d7df;
+  border-color: #f2f4f7;
+  color: #202329;
+}
+.midi-workspace .track .mute-button.active,
+.midi-workspace .all-mute.active {
+  background: linear-gradient(#d3d7df, #b1b8c3);
+  border-color: #f2f4f7;
+  color: #202329;
+  font-weight: 600;
+}
+.midi-workspace .track .mute-button.unmute-queued {
+  border-style: dashed;
+  border-color: var(--al-active-border);
+  background: linear-gradient(#234a62, #18364c);
+  box-shadow: inset 0 0 0 1px #83d6f62b;
+  color: #edf7fa;
+}
+.midi-workspace .unmute-countdown {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Neutral foundations keep selection and semantic loop colours distinct. */
+html:has(.midi-workspace) {
+  background: var(--al-canvas);
+}
+body:has(.midi-workspace) {
+  background: radial-gradient(ellipse at 50% 0, #292b2e, transparent 72%);
+}
+:is(.midi-workspace, .midi-design-overlay) select {
+  --al-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23c7cbd2' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  appearance: none;
+  background-image: var(--al-select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 8px;
+  padding-right: 36px;
+}
+.midi-workspace .tempo-choice select:not(:disabled) {
+  background-color: var(--al-active-bottom);
+  border-color: var(--al-active-border);
+  box-shadow:
+    inset 0 0 0 1px #b0ebff30,
+    0 0 7px #24b7f730;
+}
+.midi-workspace .piano-keys:focus-visible {
+  outline: none;
+}
+.midi-workspace .piano-keys.keyboard-navigation:focus-visible {
+  outline: 2px solid var(--al-accent);
+  outline-offset: 3px;
+}

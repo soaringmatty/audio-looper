@@ -121,6 +121,24 @@ export class LoopEngine {
     this.lastTick = now;
     for (const t of this.tracks) this.invalidateTrack(t.id, now);
   }
+  finishCaptures(now: number): void {
+    if (!this.paused) this.tick(now, now);
+    const at = this.pausedAt ?? now;
+    this.prepared.clear();
+    for (const t of this.tracks) {
+      if (t.state === 'overdub') {
+        this.endOverdub(t, at);
+        this.finishReleaseTail(t, at, true);
+      } else if (t.state === 'recording') {
+        if (at - t.start >= 100) {
+          const firstFree = this.mode === 'free' && !this.reference;
+          this.finish(t, at, 'play', at);
+          if (firstFree) this.onFirstFreeLoop(t);
+        } else this.clear(t.id, at);
+      } else if (t.state === 'armed') this.clear(t.id, at);
+    }
+    this.pause(at);
+  }
   toggleAllMuted(now: number): void {
     const muted = !this.allMuted;
     for (const t of this.tracks) {

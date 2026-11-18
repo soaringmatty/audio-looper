@@ -1,37 +1,80 @@
 @let vm = workspace.view();
-<div class="performance-heading"><h2>Metronom</h2></div>
-<div class="metronome-controls">
+<div class="tool-heading">
+  <h2>
+    <svg
+      class="ui-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m8 3-5 18h18L16 3Z M12 17l5-11M8 17h8" /></svg
+    >Metronom
+  </h2>
   <button
-    class="metro-button"
-    [class.active]="vm.metro.enabled"
-    [attr.aria-pressed]="vm.metro.enabled"
+    class="metro-switch"
+    role="switch"
+    [attr.aria-checked]="vm.metro.enabled"
+    aria-label="Metronom"
+    title="Metronom an/aus (T)"
     (click)="vm.toggleMetro(); workspace.refresh()"
   >
-    {{ vm.metro.enabled ? 'An' : 'Aus' }} <kbd>T</kbd>
+    <span></span>
   </button>
-  <label class="inline-label"
-    ><input
-      aria-label="Tempo"
-      type="number"
-      min="30"
-      max="300"
-      [disabled]="vm.engine.tempoLocked"
-      [ngModel]="vm.displayBpm"
-      (change)="vm.changeTempo($any($event.target).value); workspace.refresh()"
-    />BPM</label
-  >
-  <select
-    class="signature"
-    aria-label="Taktart"
-    [disabled]="vm.engine.busy"
-    [ngModel]="vm.signature"
-    (ngModelChange)="vm.setSignature($event); workspace.refresh()"
-  >
-    <option>4/4</option>
-    <option>3/4</option>
-    <option>6/8</option>
-    <option>5/4</option>
-  </select>
+</div>
+<div class="tempo-control-slot" [class.choosing]="vm.showTempoChoice">
+  @if (vm.showTempoChoice) {
+    <tempo-suggestion
+      class="tempo-inline"
+      [locked]="vm.tempoChoiceLocked"
+      [candidates]="vm.tempoCandidates"
+      [index]="vm.tempoIndex"
+      (choose)="vm.applyTempoChoice($event); workspace.refresh()"
+    />
+  } @else {
+    <label class="tempo-field"
+      >Tempo
+      <div>
+        <input
+          aria-label="Tempo"
+          type="number"
+          min="30"
+          max="300"
+          [disabled]="vm.engine.tempoLocked"
+          [ngModel]="vm.displayBpm"
+          (change)="vm.changeTempo($any($event.target).value); workspace.refresh()"
+        /><span>BPM</span>
+      </div></label
+    >
+    <label class="signature-field"
+      >Taktart<select
+        aria-label="Taktart"
+        [disabled]="vm.engine.busy"
+        [ngModel]="vm.signature"
+        (ngModelChange)="vm.setSignature($event); workspace.refresh()"
+      >
+        <option>4/4</option>
+        <option>3/4</option>
+        <option>6/8</option>
+        <option>5/4</option>
+      </select></label
+    >
+    @if (vm.tempoCandidates.length && vm.tempoConfirmed) {
+      <button
+        class="quiet-button redivide"
+        aria-label="Tempo-Einteilung ändern"
+        title="Tempo-Einteilung ändern"
+        (click)="vm.tempoOpen = true; workspace.refresh()"
+      >
+        ↻
+      </button>
+    }
+  }
+</div>
+<div class="metro-secondary">
   <select
     id="metronome-output-midi"
     aria-label="Metronom-Ausgang"
@@ -44,9 +87,18 @@
     </option>
   </select>
   <label class="metro-level"
-    ><span>Lautstärke {{ vm.metroPercent }} %</span
+    ><svg
+      class="ui-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m11 5-6 4H2v6h3l6 4ZM16 8a6 6 0 0 1 0 8M19 5a10 10 0 0 1 0 14" /></svg
     ><input
-      class="metro-volume"
       aria-label="Metronom-Lautstärke"
       type="range"
       min="0"
@@ -54,61 +106,6 @@
       step="1"
       [(ngModel)]="vm.metroPercent"
       (input)="vm.metro.setVolume(); vm.savePreferences(); workspace.refresh()"
-  /></label>
-</div>
-<div class="tempo-slot">
-  @if (!vm.engine.busy && vm.metro.outputMode === 'laptop') {
-    <div class="timing-check" aria-label="Timing-Check">
-      @if (vm.timing.active) {
-        <button (click)="vm.timing.cancel(); workspace.refresh()">Messung abbrechen</button>
-      } @else {
-        <button (click)="vm.startTiming(); workspace.refresh()">
-          {{ vm.timing.result ? 'Erneut messen' : 'Timing-Check starten' }}
-        </button>
-      }
-      <div
-        class="timing-check-status"
-        role="status"
-        aria-live="polite"
-        title="Einspielversatz zum Klick einschließlich Signalweg; keine isolierte Taste-bis-Ton-Latenzmessung. Keine automatische Verschiebung von Noten."
-      >
-        @if (vm.timing.active) {
-          <strong>{{ vm.timing.samples.length }}/6 Anschläge</strong>
-          <span>Nach zwei Klicks sechs Noten im Klickpuls spielen.</span>
-        } @else if (vm.timing.result; as result) {
-          <strong>Einspielversatz: {{ result.offsetMs | number: '1.0-1' }} ms</strong>
-          <span [title]="vm.timing.message">
-            @if (result.spreadMs > 25) {
-              Hohe Streuung: {{ result.spreadMs | number: '1.0-1' }} ms · erneut messen.
-            } @else if (
-              vm.metro.outputMode === 'laptop' &&
-              vm.midi.outputId !== 'browser' &&
-              vm.timing.calibration &&
-              vm.useMeasuredMetronome
-            ) {
-              Klick-Vorlauf: {{ vm.metro.advanceMs | number: '1.0-1' }} ms · aktiv
-            } @else {
-              Streuung: {{ result.spreadMs | number: '1.0-1' }} ms · Klickkorrektur nicht aktiv
-            }
-          </span>
-        } @else {
-          <strong>6 Anschläge zum Klick</strong>
-          <span>{{ vm.timing.message || 'Ergebnis bleibt hier sichtbar.' }}</span>
-        }
-      </div>
-    </div>
-  } @else if (vm.engine.busy && vm.tempoCandidates.length) {
-    <tempo-suggestion
-      class="tempo-inline"
-      [locked]="vm.tempoChoiceLocked"
-      [candidates]="vm.tempoCandidates"
-      [index]="vm.tempoIndex"
-      [(bars)]="vm.tempoBars"
-      [(signature)]="vm.tempoSignature"
-      [bpm]="vm.tempoBpm"
-      [canApply]="vm.canConfirmTempo"
-      (choose)="vm.applyTempoChoice($event); workspace.refresh()"
-      (customChange)="vm.confirmTempo(); workspace.refresh()"
-    />
-  }
+    /><span>{{ vm.metroPercent }} %</span></label
+  >
 </div>

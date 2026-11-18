@@ -3,9 +3,9 @@
   performanceFocus
   data-performance
   tabindex="-1"
-  class="workspace"
+  class="workspace midi-workspace"
   [class.with-piano]="vm.pianoVisible"
-  [attr.inert]="vm.settingsOpen ? '' : null"
+  [attr.inert]="vm.settingsOpen || vm.resetOpen || vm.pendingProject ? '' : null"
 >
   @if (vm.performanceWarning) {
     <aside class="performance-alert" role="alert">
@@ -21,15 +21,183 @@
     [busy]="vm.engine.busy"
     (settingsRequested)="vm.openSettings(); workspace.refresh()"
   ></header>
-
-  <section class="connections panel" aria-label="Ein- und Ausgang" app-midi-connections></section>
-
-  <section
-    class="transport panel metronome-card"
-    aria-label="Metronom"
-    app-midi-metronome
-  ></section>
-
+  <div class="setup-grid">
+    <section
+      class="connections tool-card panel"
+      aria-label="Ein- und Ausgabe"
+      app-midi-connections
+    ></section>
+    <section
+      class="metronome-card tool-card panel"
+      aria-label="Metronom"
+      app-midi-metronome
+    ></section>
+    <section class="session-card tool-card panel" aria-labelledby="session-title">
+      <div class="tool-heading">
+        <h2 id="session-title">
+          <svg
+            class="ui-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 6h16M4 12h10M4 18h10" />
+            <path d="m18 11 4 4-4 4" /></svg
+          >Session
+        </h2>
+        <span class="section-caption">MIDI-Projekt</span>
+      </div>
+      <div class="session-files">
+        <button (click)="vm.exportProject()">
+          <svg
+            class="ui-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2Z" />
+            <path d="M7 3v6h10V3M7 21v-8h10v8" /></svg
+          >Speichern
+        </button>
+        <button [disabled]="vm.projectBusy" (click)="projectFile.click()">
+          <svg
+            class="ui-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"
+            /></svg
+          >Laden
+        </button>
+        <input
+          #projectFile
+          type="file"
+          accept=".aloop,.json,application/json"
+          hidden
+          (change)="vm.importProject($event)"
+        />
+      </div>
+      <div class="session-transport" aria-label="Transport und Session-Aktionen">
+        <button
+          class="transport-toggle transport-icon"
+          [class.active]="vm.engine.paused"
+          [attr.aria-label]="vm.engine.paused ? 'Fortsetzen' : 'Pause'"
+          [attr.title]="vm.engine.paused ? 'Fortsetzen' : 'Pause'"
+          (click)="vm.togglePause()"
+        >
+          @if (vm.engine.paused) {
+            <svg
+              class="ui-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m8 4 12 8-12 8Z" fill="currentColor" stroke="none" />
+            </svg>
+          } @else {
+            <svg
+              class="ui-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M8 5v14M16 5v14" stroke-width="4" />
+            </svg>
+          }
+        </button>
+        <button
+          class="transport-stop transport-icon"
+          aria-label="Stop – zum Start zurück"
+          title="Stop: pausieren und zum gemeinsamen Start zurück"
+          (click)="vm.stopTransport()"
+        >
+          <svg
+            class="ui-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+        <button
+          class="all-mute"
+          [class.active]="vm.engine.allMuted"
+          [attr.aria-pressed]="vm.engine.allMuted"
+          (click)="vm.toggleAllMuted()"
+        >
+          <svg
+            class="ui-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m11 5-6 4H2v6h3l6 4ZM16 9l6 6M22 9l-6 6" /></svg
+          >{{ vm.engine.allMuted ? 'Alle aktiv' : 'Alle stumm' }}
+        </button>
+        <button
+          class="quiet-button reset-all-tracks"
+          aria-label="Alle Tracks zurücksetzen"
+          title="Alle Tracks zurücksetzen"
+          (click)="vm.resetAllTracks()"
+        >
+          <svg
+            class="ui-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></svg
+          >Zurücksetzen
+        </button>
+      </div>
+    </section>
+  </div>
+  <div class="mobile-selector" aria-label="Spur wählen">
+    @for (t of vm.engine.tracks; track t.id) {
+      <button
+        [class.active]="vm.engine.selected === t.id"
+        [attr.aria-pressed]="vm.engine.selected === t.id"
+        (click)="vm.select(t.id); workspace.refresh()"
+      >
+        {{ t.id + 1 }}
+      </button>
+    }
+  </div>
   <section class="tracks" aria-label="Loop-Spuren">
     @for (t of vm.engine.tracks; track t.id) {
       <article
@@ -43,78 +211,19 @@
       ></article>
     }
   </section>
-
-  <footer>
-    <span class="project-status" role="status">{{ vm.projectStatus }}</span>
-    <div class="shortcuts">
-      <span><kbd>1–5</kbd> Spur</span><span><kbd>Space / Enter</kbd> Aufnahme / Overdub</span
-      ><span><kbd>T</kbd> Metronom</span><span><kbd>Shift+1–5</kbd> Track stumm</span
-      ><span><kbd>Entf</kbd> Löschen</span>
-    </div>
-    <button
-      class="piano-toggle"
-      [attr.aria-expanded]="vm.pianoVisible"
-      (click)="vm.togglePiano(); workspace.refresh()"
-    >
-      {{ vm.pianoVisible ? 'Piano ausblenden' : 'Piano einblenden' }}
-    </button>
-    <button class="midi-retry" (click)="vm.openDiagnostics(); workspace.refresh()">
-      MIDI-Diagnose
-    </button>
-    @if (vm.midi.midiState === 'error') {
-      <button class="midi-retry" (click)="vm.midi.connect(); workspace.refresh()">
-        MIDI erneut versuchen
-      </button>
-    }
-    <div class="project-controls" aria-label="MIDI-Projekt und Wiedergabe">
-      <button (click)="vm.exportProject()">Speichern</button>
-      <button [disabled]="vm.projectBusy" (click)="projectFile.click()">Laden</button>
-      <input
-        #projectFile
-        type="file"
-        accept=".aloop,.json,application/json"
-        hidden
-        (change)="vm.importProject($event)"
-      />
-      <button
-        [class.active]="vm.engine.paused"
-        [attr.aria-pressed]="vm.engine.paused"
-        (click)="vm.togglePause()"
-      >
-        {{ vm.engine.paused ? 'Fortsetzen' : 'Pause' }}
-      </button>
-      <button
-        [class.active]="vm.engine.allMuted"
-        [attr.aria-pressed]="vm.engine.allMuted"
-        (click)="vm.toggleAllMuted()"
-      >
-        {{ vm.engine.allMuted ? 'Alle aktiv' : 'Alle stumm' }}
-      </button>
-      <button class="reset-all-tracks" (click)="vm.resetAllTracks()">
-        Alle Tracks zurücksetzen
-      </button>
-    </div>
-  </footer>
-  <div class="mobile-selector" aria-label="Spur wählen">
-    @for (t of vm.engine.tracks; track t.id) {
-      <button
-        [class.active]="vm.engine.selected === t.id"
-        (click)="vm.select(t.id); workspace.refresh()"
-      >
-        Spur {{ t.id + 1 }}
-      </button>
-    }
-  </div>
-
   @if (vm.pianoVisible) {
     <section class="piano-dock panel" aria-label="Virtuelles Piano" app-midi-piano></section>
   }
 </main>
 
+@if (vm.timingOpen) {
+  <app-midi-timing-dialog class="midi-design-overlay" />
+}
+
 @if (vm.settingsOpen) {
   <div class="settings-backdrop" (click)="vm.closeSettings(); workspace.refresh()"></div>
   <section
-    class="settings-panel panel"
+    class="settings-panel panel midi-design-overlay"
     role="dialog"
     aria-modal="true"
     aria-labelledby="settings-title"
@@ -124,6 +233,7 @@
 
 @if (vm.resetOpen) {
   <reset-confirmation
+    class="midi-design-overlay"
     [resetPianoRanges]="true"
     (confirmed)="vm.confirmResetAllTracks(); workspace.refresh()"
     (cancelled)="vm.resetOpen = false; workspace.refresh()"
@@ -132,6 +242,7 @@
 
 @if (vm.pendingProject) {
   <reset-confirmation
+    class="midi-design-overlay"
     title="MIDI-Projekt laden?"
     description="Die aktuellen Loops und laufende Aufnahmen werden ersetzt. Das geladene Projekt wartet pausiert auf Fortsetzen."
     actionLabel="Projekt laden"

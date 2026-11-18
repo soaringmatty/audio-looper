@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.15.0 — 2026-11-18
+
+- Redesign the MIDI workspace with neutral anthracite surfaces, cyan selection, readable Full-HD controls and compact Routing/Metronome/Session cards. Preserve established recording/playback/overdub circle colors; clearly distinguish muted tracks and queued unmute countdowns.
+- Put MIDI project/transport actions in two full-width Session rows; add Stop that finishes active captures, cancels queues, pauses and returns to the import start anchor without deleting loops.
+- Replace normal MIDI tempo controls with proposals until selection. Remove custom division from MIDI and audio; keep normal tempo/signature controls.
+- Tie the 200-px browser piano to the selected input, support mouse glissando and show its full-surface focus outline only during Tab navigation.
+- Apply the design to MIDI settings/reset/import overlays. Keep the pre-existing settings-close performance-focus issue explicit; audio workspace redesign is not included.
+- Move MIDI timing calibration into a modal opened from Routing, with six-tap progress, result/spread, repeat/cancel and keyboard piano support while transport/pedal shortcuts are blocked. Routing shows offset without fabricating a zero reading.
+- Production builds and focused release safety checks; no broad regression or hardware/sound acceptance. Calibration browser check remains formally partial because of stale test-fixture assumptions, not a proven product failure.
+
+
 ## v0.14.0 — 2026-11-17
 
 - Center MIDI track circles between the heading and instrument selector without state-dependent movement or shrinking their original size. Remove the small per-track status row at the user's request; use the freed space as equal top/bottom dial padding. Keep existing action state/countdown in the main button's accessible label. MIDI template/component styles only, no audio/engine changes. Original sizing formula and three synthetic browser states checked at 1280/960/390 px; production build passed.

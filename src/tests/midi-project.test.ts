@@ -215,7 +215,7 @@ it('pause freezes loop phase, recording, pending actions and metronome; resume s
   await vm.togglePause();
   expect(vm.engine.paused).toBe(true);
   expect(vm.metro.paused).toBe(true);
-  expect(vm.projectStatus).toBe('');
+  expect('projectStatus' in vm).toBe(false);
   await vm.togglePause();
   expect(vm.engine.paused).toBe(false);
   expect(vm.metro.paused).toBe(false);

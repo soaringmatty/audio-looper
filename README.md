@@ -34,11 +34,19 @@ node scripts/check-release.mjs
 
 Serve that output mounted at `/audio-looper/`; do not open `index.html` as a local file. For changes to runtime audio behavior, test the intended MIDI/audio device setup in addition to code tests. GitHub hosting does not eliminate local audio latency.
 
+## MIDI workspace
+
+Neutral anthracite surfaces with cyan selection, compact Routing/Metronome/Session cards, visible queued unmute and readable Full-HD controls. Session contains save/load, pause/resume, Stop, all mute/active and reset. Stop preserves captures and returns to the import start anchor. The input-dependent browser piano is 200 CSS-px high and supports mouse glissando.
+
+Routing → Kalibrieren opens the six-tap timing dialog; offset remains visible in Routing. Measurement includes playing behavior, not isolated hardware latency. MIDI settings/reset/import overlays share the design; audio retains its separate layout. Custom tempo division has been removed from both modes.
+
+Known limitation: closing MIDI settings does not reliably return performance focus; click the workspace if shortcuts do not respond. Hardware/sound acceptance and audio redesign remain separate.
+
 ## v0.14.0
 
 - Save/load MIDI sessions as versioned `.aloop` files: five tracks, completed note/pedal layers, instruments, volumes, mutes, keyboard ranges and shared timing. Saving during recording/overdub leaves the active take out without stopping it. No standard MIDI/audio export.
 - Import validates before replacement confirmation (16 MiB / 200,000 events); cancel or invalid files preserve the session. Load paused at a shared loop zero, otherwise at the longest loop's beginning with relative phases preserved. Ports, permissions and calibrations are not imported.
-- Pause/resume freezes MIDI transport, capture and metronome; live playing remains audible but unrecorded while paused. Resume chases held loop voices. All mute sets individual track mutes; tracks can be enabled separately, or all immediately with All active. These controls are beside reset in the footer.
+- Pause/resume freezes MIDI transport, capture and metronome; live playing remains audible but unrecorded while paused. Resume chases held loop voices. All mute sets individual track mutes; tracks can be enabled separately, or all immediately with All active. These controls are in the Session card.
 - Track changes immediately finish the previous overdub in MIDI/audio without restarting loops. Browser drums are available on every track; loop mute does not mute live monitoring. External GM drums still share channel 10; devices without queue-clear retain their existing output limitation.
 - German physical keyboard: `< Y X C V B N M , . -` always play eleven white notes; matching black notes use A through Ö with dynamic gaps. Left/right shifts one white note, up/down one octave. Each track remembers its range. Defaults and confirmed global reset start at B3 (German H3), or B1 for drums, so Y plays C4/C2. Single-track clear and reset cancellation preserve ranges.
 - MIDI circles retain their original size with symmetric spacing and no small status row. Content-sized workspace rows prevent metronome/track overlap.
@@ -59,9 +67,9 @@ Non-blocking reset confirmation, global volume reset, direct track mute shortcut
 
 - `1`–`5`: select track; `Space`/`Enter`: record/play/overdub action.
 - `Shift+1`–`Shift+5`: mute/unmute that track without selection changes; `Shift+M`: selected track; `Delete`: clear recording.
-- `T`: metronome; `+`/`−`: piano keyboard octave.
+- `T`: metronome; left/right: one white key; up/down: piano octave.
 - Fixed bar counts survive clearing a single track. The field's × or confirmed global reset clears the preset.
-- The main-page six-tap timing check can calibrate laptop metronome clicks when using an external MIDI output. It does not accelerate live audio playback or move recorded notes. Measured compensation can be disabled/reset in settings.
+- The six-tap timing dialog opened from Routing can calibrate laptop metronome clicks when using an external MIDI output. It does not accelerate live audio playback or move recorded notes. Measured compensation can be disabled/reset in settings.
 
 ## MIDI performance and metronome output
 

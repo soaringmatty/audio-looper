@@ -69,14 +69,15 @@ export class MidiWorkspace implements OnDestroy {
   targetState = targetState;
   buttonLabel = buttonLabel;
   countdown = countdown;
-  pianoVisible = true;
-  private lastInputId = 'piano';
+  get pianoVisible(): boolean {
+    return this.midi.inputId === 'piano';
+  }
   settingsOpen = false;
+  timingOpen = false;
   resetOpen = false;
   pendingProject: MidiProject | null = null;
   projectBusy = false;
   private transportBusy = false;
-  projectStatus = '';
   exportProject(): void {
     try {
       const data = exportMidiProject(this.engine, this.midi.browser.requestedBank);
@@ -88,8 +89,6 @@ export class MidiWorkspace implements OnDestroy {
       link.download = 'midi-loop-' + new Date().toISOString().replace(/[:.]/g, '-') + '.aloop';
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      this.projectStatus =
-        'Projekt exportiert. Laufende Erstaufnahme und aktuelle Overdub-Schicht sind nicht enthalten.';
     } catch {
       this.warning = 'Projekt konnte nicht exportiert werden.';
     }
@@ -135,7 +134,6 @@ export class MidiWorkspace implements OnDestroy {
       this.piano.startNote = this.engine.tracks[project.selected].pianoStart!;
       this.timing.cancel('Projekt geladen.');
       this.warning = '';
-      this.projectStatus = '';
       this.pendingProject = null;
     } catch {
       this.warning = 'Projekt konnte nicht geladen werden. Soundbank und Ausgang prüfen.';
@@ -171,11 +169,26 @@ export class MidiWorkspace implements OnDestroy {
         this.engine.pause(performance.now());
         this.metro.pause();
       }
-      this.projectStatus = '';
       this.refresh();
     } finally {
       this.transportBusy = false;
     }
+  }
+  stopTransport(): void {
+    if (this.transportBusy || this.projectBusy) return;
+    this.release();
+    const now = performance.now();
+    this.engine.finishCaptures(now);
+    const project = exportMidiProject(this.engine, this.midi.browser.requestedBank);
+    this.metro.pause();
+    restoreMidiProject(this.engine, project, now);
+    this.syncMetro();
+    this.metro.align(now, now);
+    this.timing.cancel('Messung bei Stop abgebrochen.');
+    this.refresh();
+  }
+  get showTempoChoice(): boolean {
+    return this.tempoCandidates.length > 0 && (!this.tempoConfirmed || this.tempoOpen);
   }
   toggleAllMuted(): void {
     this.engine.toggleAllMuted(this.now());
@@ -257,6 +270,8 @@ export class MidiWorkspace implements OnDestroy {
   tempoSignature = '4/4';
   tempoIndex = -1;
   private waitingNotes = new Map<string, { note: number; track: number }>();
+  private pianoPointers = new Map<number, number | null>();
+  pianoKeyboardFocus = false;
   get tempoBpm(): number {
     const [beats, denominator] = this.tempoSignature.split('/').map(Number);
     return this.engine.reference
@@ -347,14 +362,11 @@ export class MidiWorkspace implements OnDestroy {
       }
       this.timing.setRoute(this.timingRoute());
       this.syncMetronomeAdvance();
-      if (this.lastInputId !== this.midi.inputId) {
-        this.lastInputId = this.midi.inputId;
-        this.pianoVisible = this.midi.inputId === 'piano';
-      }
+
       this.refresh();
     };
     this.midi.onLoopPedal = () => {
-      if (!this.settingsOpen && !this.resetOpen && !this.pendingProject)
+      if (!this.settingsOpen && !this.timingOpen && !this.resetOpen && !this.pendingProject)
         void this.trigger(this.engine.selected);
     };
     this.midi.onInstrumentChange = (id, program) => this.program(this.engine.tracks[id], program);
@@ -441,6 +453,19 @@ export class MidiWorkspace implements OnDestroy {
       this.refresh();
     }
   }
+  openTimingDialog(): void {
+    this.release();
+    this.timing.setRoute(this.timingRoute());
+    this.settingsOpen = false;
+    this.timingOpen = true;
+  }
+  closeTimingDialog(): void {
+    this.timing.cancel();
+    this.syncMetronomeAdvance();
+    this.release();
+    this.timingOpen = false;
+    this.refresh();
+  }
   async startTiming(): Promise<void> {
     if (this.engine.busy) {
       this.timing.message = 'Messung nur bei leeren Spuren starten.';
@@ -459,7 +484,7 @@ export class MidiWorkspace implements OnDestroy {
         : (outputDelayMs(this.metro.context) ?? 0),
       this.metro.compensateOutput ? this.metro.advanceMs : undefined,
     );
-    this.closeSettings();
+    if (this.settingsOpen) this.closeSettings();
     this.refresh();
   }
   now(): number {
@@ -495,6 +520,7 @@ export class MidiWorkspace implements OnDestroy {
     this.syncMetronomeAdvance();
   }
   release = (): void => {
+    this.pianoPointers.clear();
     this.waitingNotes.clear();
     this.piano.release();
     this.midi.releaseInput();
@@ -556,9 +582,12 @@ export class MidiWorkspace implements OnDestroy {
     }
   }
   key = (e: KeyboardEvent): void => {
+    // Performance keys are not focus navigation. Only Tab may expose the
+    // outline around the whole piano; playing or selecting tracks must not.
+    this.pianoKeyboardFocus = e.key === 'Tab';
     if (this.resetOpen || this.pendingProject) return;
     const target = e.target as HTMLElement;
-    if (e.key === 'Escape' && this.tempoOpen && !this.settingsOpen) {
+    if (e.key === 'Escape' && this.tempoOpen && !this.settingsOpen && !this.timingOpen) {
       e.preventDefault();
       this.tempoOpen = false;
       return;
@@ -615,6 +644,8 @@ export class MidiWorkspace implements OnDestroy {
         return;
       }
     }
+    // A calibration dialog permits piano notes, not transport/record shortcuts.
+    if (this.timingOpen) return;
     // Space is a performance shortcut throughout the workspace. Enter still
     // activates focused controls; piano buttons handle their own Space locally.
     const action = shortcut(
@@ -670,28 +701,37 @@ export class MidiWorkspace implements OnDestroy {
       this.engine.invalidate(this.now());
     }
   };
-  async togglePiano(): Promise<void> {
-    this.release();
-    if (this.pianoVisible) {
-      this.pianoVisible = false;
-      return;
-    }
-    if (this.midi.outputId === 'browser' && !this.midi.browser.ready) await this.midi.enableAudio();
-    this.pianoVisible = true;
-    await this.midi.selectInput('piano');
-    this.refresh();
-    setTimeout(() => document.getElementById('piano-surface')?.focus({ preventScroll: true }));
-  }
   pianoDown(e: PointerEvent, note: number): void {
     if (e.button !== 0) return;
     e.preventDefault();
     this.activateAudio();
     if (this.midi.inputId !== 'piano') return;
-    document.getElementById('piano-surface')?.focus({ preventScroll: true });
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const surface = document.getElementById('piano-surface');
+    this.pianoKeyboardFocus = false;
+    surface?.focus({ preventScroll: true });
+    surface?.setPointerCapture(e.pointerId);
+    this.pianoPointers.set(e.pointerId, note);
     this.playNote(`pointer:${e.pointerId}`, note);
   }
+  pianoMove(e: PointerEvent): void {
+    // Touch keeps its existing per-finger hold. Mouse capture stays on the
+    // surface so release outside it is reliable; hit-test the actual key.
+    if (e.pointerType !== 'mouse' || !this.pianoPointers.has(e.pointerId)) return;
+    if (!(e.buttons & 1)) {
+      this.pianoUp(e);
+      return;
+    }
+    const key = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('.piano-key');
+    const note = key?.closest('#piano-surface') ? Number(key.dataset.note) : null;
+    if (this.pianoPointers.get(e.pointerId) === note) return;
+    const source = `pointer:${e.pointerId}`;
+    this.waitingNotes.delete(source);
+    this.piano.up(source);
+    this.pianoPointers.set(e.pointerId, note);
+    if (note !== null && this.midi.inputId === 'piano') this.playNote(source, note);
+  }
   pianoUp(e: PointerEvent): void {
+    this.pianoPointers.delete(e.pointerId);
     this.waitingNotes.delete(`pointer:${e.pointerId}`);
     this.piano.up(`pointer:${e.pointerId}`);
   }
@@ -700,6 +740,7 @@ export class MidiWorkspace implements OnDestroy {
     this.shiftPiano(delta * 7);
   }
   shiftPiano(delta: number): void {
+    this.pianoPointers.clear();
     this.waitingNotes.clear();
     this.piano.shiftWhite(delta);
     this.engine.tracks[this.engine.selected].octave = this.piano.octave;
@@ -816,18 +857,6 @@ export class MidiWorkspace implements OnDestroy {
         'Für den MIDI-Klick einen verbundenen MIDI-Ausgang wählen oder auf Laptop-Klick umstellen.';
       return;
     }
-    this.timing.cancel('Messung bei Metronomwechsel abgebrochen.');
-    if (this.engine.paused) {
-      try {
-        await this.metro.toggle(this.now(), this.engine.origin ?? this.now());
-      } catch {
-        this.warning = 'Metronom: Audiofreigabe prüfen.';
-      }
-      this.refresh();
-      return;
-    }
-    if (this.metro.outputMode === 'laptop') this.activateAudio();
-    this.syncMetronomeAdvance();
     if (
       !this.metro.enabled &&
       this.engine.busy &&
@@ -841,6 +870,18 @@ export class MidiWorkspace implements OnDestroy {
       this.warning = 'Zuerst eine Einteilung in der Tempo-Auswahl wählen.';
       return;
     }
+    this.timing.cancel('Messung bei Metronomwechsel abgebrochen.');
+    if (this.engine.paused) {
+      try {
+        await this.metro.toggle(this.now(), this.engine.origin ?? this.now());
+      } catch {
+        this.warning = 'Metronom: Audiofreigabe prüfen.';
+      }
+      this.refresh();
+      return;
+    }
+    if (this.metro.outputMode === 'laptop') this.activateAudio();
+    this.syncMetronomeAdvance();
     try {
       this.syncMetro();
       const now = this.now();
@@ -851,8 +892,9 @@ export class MidiWorkspace implements OnDestroy {
     }
   }
   applyTempoChoice(index: number): void {
+    if (!this.tempoCandidates[index]) return;
     this.chooseTempo(index);
-    if (index >= 0 || index === -2) void this.confirmTempo();
+    void this.confirmTempo();
   }
   setRecordBars(t: Track, value: unknown): void {
     if (t.state !== 'empty') return;
@@ -904,6 +946,8 @@ export class MidiWorkspace implements OnDestroy {
     this.savePreferences();
     this.tempoOpen = false;
     if (this.settingsOpen) this.closeSettings();
+    focusPerformance();
+    this.refresh();
   }
   panic(): void {
     this.midi.trace.record('panic-before', { snapshot: this.midi.snapshot() });

@@ -62,6 +62,23 @@ import {
     .danger {
       border-color: #d17878;
     }
+    :host(.midi-design-overlay) dialog {
+      color: var(--al-text);
+      background: linear-gradient(145deg, #27292d, var(--al-surface) 75%);
+      border-color: var(--al-border);
+      border-radius: var(--al-radius);
+      width: min(480px, calc(100vw - 32px));
+      max-width: none;
+      max-height: calc(100dvh - 32px);
+      overflow: auto;
+      box-shadow:
+        inset 0 1px #ffffff0b,
+        0 16px 50px #0008;
+      font-size: 16px;
+    }
+    :host(.midi-design-overlay) p {
+      color: var(--al-muted);
+    }
   `,
 })
 export class ResetConfirmation implements OnDestroy {

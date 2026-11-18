@@ -3,3 +3,6 @@
 @import './styles/audio-workspace.css';
 
 @import './styles/performance-cards.css';
+
+@import './styles/midi-design.css';
+@import './styles/midi-overlays.css';

@@ -319,8 +319,9 @@ export class AudioWorkspace implements OnDestroy {
     this.refresh();
   }
   applyTempoChoice(index: number): void {
+    if (!this.candidates[index]) return;
     this.chooseTempo(index);
-    if (index >= 0 || index === -2) void this.confirmTempo();
+    void this.confirmTempo();
   }
   setRecordBars(t: AudioTrackState, value: unknown): void {
     if (t.state !== 'empty') return;

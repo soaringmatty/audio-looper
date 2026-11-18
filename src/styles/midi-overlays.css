@@ -1,0 +1,109 @@
+/* Explicitly marked MIDI overlays live outside the workspace. Audio keeps its
+   existing UI; native confirmations inherit this theme only on marked hosts. */
+.midi-design-overlay.settings-panel {
+  width: min(640px, calc(100vw - 32px));
+  color: var(--al-text);
+}
+.midi-design-overlay .settings-heading {
+  padding: 16px 20px;
+  border-bottom-color: var(--al-border);
+}
+.midi-design-overlay .settings-heading h2 {
+  font-size: 20px;
+  color: var(--al-text);
+}
+.midi-design-overlay .settings-heading button {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  font-size: 24px;
+}
+.midi-design-overlay .settings-tabs {
+  padding: 10px 20px;
+  gap: 6px;
+  border-bottom-color: var(--al-border);
+}
+.midi-design-overlay .settings-tabs button {
+  padding: 7px 10px;
+  font-size: 15px;
+}
+.midi-design-overlay .settings-tabs button.active {
+  background: linear-gradient(var(--al-active-top), var(--al-active-bottom));
+  border-color: var(--al-active-border);
+  color: var(--al-text);
+  box-shadow:
+    inset 0 0 0 1px var(--al-active-inner),
+    0 0 8px var(--al-active-glow);
+}
+.midi-design-overlay .settings-content {
+  padding: 18px 20px;
+  color: var(--al-text);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.midi-design-overlay .setting-row > label {
+  font-size: 15px;
+}
+.midi-design-overlay .setting-row > select {
+  margin: 0;
+  padding: 7px 36px 7px 10px;
+}
+.midi-design-overlay .settings-content h3 {
+  color: var(--al-text);
+  font-size: 17px;
+}
+.midi-design-overlay :is(.settings-note, .diagnostic-note) {
+  color: var(--al-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.midi-design-overlay .settings-content a {
+  color: var(--al-accent);
+}
+.midi-design-overlay .settings-content .check {
+  font-size: 15px !important;
+  color: var(--al-text);
+}
+.midi-design-overlay input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--al-accent);
+}
+.midi-design-overlay .midi-diagnostics {
+  border-top-color: var(--al-border);
+}
+.midi-design-overlay kbd {
+  background: var(--al-field);
+  border-color: #646971;
+  color: var(--al-text);
+}
+.midi-design-overlay .device-detail {
+  background: var(--al-raised);
+  color: var(--al-text);
+}
+.midi-design-overlay .info-tooltip {
+  background: var(--al-surface);
+  border-color: #727985;
+  color: var(--al-text);
+}
+.midi-design-overlay .panic-button,
+.midi-design-overlay button.danger {
+  color: #edb9c4;
+  background: linear-gradient(#3b2c30, #2d2428);
+  border-color: #80535e;
+}
+.midi-design-overlay .panic-button:hover:not(:disabled),
+.midi-design-overlay button.danger:hover:not(:disabled) {
+  color: var(--al-danger);
+  background: linear-gradient(#4a3037, #38272d);
+  border-color: #d18c99;
+}
+@media (max-width: 720px) {
+  .midi-design-overlay .settings-heading,
+  .midi-design-overlay .settings-content {
+    padding: 14px;
+  }
+  .midi-design-overlay .settings-tabs {
+    padding: 10px 14px;
+  }
+}
